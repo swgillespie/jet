@@ -1,0 +1,8 @@
+(define repl
+  (lambda ()
+    (begin
+      (print ">> ")
+      (println (eval (read)))
+      (repl))))
+
+(repl)
