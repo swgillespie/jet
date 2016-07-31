@@ -28,12 +28,15 @@
 
 #define UNUSED_PARAMETER(p) (void)p
 
-#define PANIC(msg) PanicImpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, msg)
+#define PANIC(msg) PanicImpl(__FILE__, __LINE__, __func__, msg)
 #define UNREACHABLE() PANIC("entered unreachable code")
 #define NYI() PANIC("not implemented")
 
-// TODO(xplat)
 #define PAGE_SIZE 4096
+
+#ifdef _WIN32
+#define strdup _strdup
+#endif
 
 // Prints a message to standard error and aborts. Used for fatal internal
 // errors.

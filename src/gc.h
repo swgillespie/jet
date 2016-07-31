@@ -46,11 +46,11 @@ private:
 public:
   Frame(const char *name, Frame *parent)
       : name(name), roots(), parent(parent) {}
-  void Root(Sexp **pointer, const char *name) {
-    roots.push_back(std::make_tuple(name, pointer));
+  void Root(Sexp **pointer, const char *var_name) {
+    roots.push_back(std::make_tuple(var_name, pointer));
   }
-  void Root(std::vector<Sexp *> *vec, const char *name) {
-    vector_roots.push_back(std::make_tuple(name, vec));
+  void Root(std::vector<Sexp *> *vec, const char *var_name) {
+    vector_roots.push_back(std::make_tuple(var_name, vec));
   }
 
   void
@@ -122,7 +122,7 @@ public:
 // It's important to note that it is not strictly necessary to introduce a GC
 // helper frame if there are no pointers to protect, or if one can be sure that
 // a GC will not occur.
-#define GC_HELPER_FRAME FrameProtector __frame_prot(__PRETTY_FUNCTION__)
+#define GC_HELPER_FRAME FrameProtector __frame_prot(__func__)
 
 // GC_PROTECT protects an lvalue from garbage collector and ensures that it will
 // be relocated correctly upon garbage collection.

@@ -50,9 +50,9 @@ struct Function {
 template <typename Ret, typename... Args, size_t... Index>
 Ret NativeFunctionHelper(std::function<Ret(Args...)> wrapped, Sexp **args,
                          std::index_sequence<Index...>) {
-  // GCC is silly and doesn't think that args is being used here,
+  // both GCC and MSVC are silly and doesn't think that args is being used here,
   // despite it obviously being used by the parameter pack below.
-#ifdef __GNUG__
+#if defined(__GNUG__) || defined(_MSC_VER)
   UNUSED_PARAMETER(args);
 #endif
   return wrapped(args[Index]...);
@@ -123,6 +123,12 @@ struct Sexp {
   // Padding to ensure that the size of this structure evenly
   // divides a page. Also serves as a useful checksum.
   uint64_t padding;
+
+#ifdef _WIN32
+  // MSVC lays out this class differently enough to alter its
+  // alignment. We still need to align to a page, so we need more padding.
+  uint64_t padding_2;
+#endif
 
   // Returns true if this sexp is the empty sexp.
   inline bool IsEmpty() const { return kind == Sexp::Kind::EMPTY; }

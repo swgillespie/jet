@@ -24,6 +24,12 @@
 #include <unordered_map>
 #include <cstdarg>
 
+#ifdef _WIN32
+#include "windows.h"
+#else
+#include <sys/mman.h>
+#endif
+
 #ifdef DEBUG
 #define GC_DEBUG_LOG_SIZE 256
 #define GC_DEBUG_MSG_SIZE 256
@@ -32,8 +38,6 @@ char *g_gc_log[GC_DEBUG_LOG_SIZE];
 size_t g_gc_log_index = 0;
 #endif
 
-// TODO(xplat) libc only
-#include <sys/mman.h>
 #include <unordered_set>
 
 Frame *g_frames;
@@ -105,7 +109,14 @@ uint8_t *MapTheHeap(size_t page_number) {
 
   return (uint8_t*)heap;
 #else
-  PANIC("not implemented: windows");
+  void *heap = VirtualAlloc(nullptr, PAGE_SIZE * page_number, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  if (heap == nullptr) {
+    std::ostringstream stream;
+	stream << "failed to allocate heap: error " << GetLastError();
+	PANIC(stream.str().c_str());
+  }
+
+  return (uint8_t*)heap;
 #endif
 }
 
@@ -114,7 +125,8 @@ void UnmapTheHeap(uint8_t *heap, size_t size) {
 #ifndef _WIN32
   munmap(heap, size);
 #else
-  PANIC("not implemented: windows")
+  UNUSED_PARAMETER(size);
+  VirtualFree(heap, 0, MEM_RELEASE);
 #endif
 }
 

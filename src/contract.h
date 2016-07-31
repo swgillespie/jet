@@ -103,13 +103,13 @@ void SignalContractViolation(ContractFrame::Restriction restriction,
 // are implementation details - this is the interface.
 
 #ifdef DEBUG
-#define CONTRACT ContractFrameProtector __contract_frame(__PRETTY_FUNCTION__);
+#define CONTRACT ContractFrameProtector __contract_frame(__func__);
 #define FORBID_GC                                                              \
   __contract_frame.AddContract(ContractFrame::Restriction::NoGc);
 #define PRECONDITION(expr) __contract_frame.CheckPrecondition(expr, #expr)
 #define CONTRACT_VIOLATIONS
 #define PERFORMS_GC                                                            \
-  SignalContractViolation(ContractFrame::Restriction::NoGc, __PRETTY_FUNCTION__)
+  SignalContractViolation(ContractFrame::Restriction::NoGc, __func__)
 #else
 #define CONTRACT
 #define FORBID_GC
