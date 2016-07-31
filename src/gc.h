@@ -1,8 +1,8 @@
 #pragma once
 
 #include "activation.h"
-#include "sexp.h"
 #include "meaning.h"
+#include "sexp.h"
 #include <memory>
 #include <vector>
 
@@ -19,26 +19,29 @@
 class Frame {
 private:
   const char *name;
-  std::vector<std::tuple<const char*, Sexp **>> roots;
-  std::vector<std::tuple<const char*, std::vector<Sexp*>*>> vector_roots;
+  std::vector<std::tuple<const char *, Sexp **>> roots;
+  std::vector<std::tuple<const char *, std::vector<Sexp *> *>> vector_roots;
   Frame *parent;
 
 public:
   Frame(const char *name, Frame *parent)
       : name(name), roots(), parent(parent) {}
-  void Root(Sexp **pointer, const char* name) { roots.push_back(std::make_tuple(name, pointer)); }
-  void Root(std::vector<Sexp*>* vec, const char* name) {
+  void Root(Sexp **pointer, const char *name) {
+    roots.push_back(std::make_tuple(name, pointer));
+  }
+  void Root(std::vector<Sexp *> *vec, const char *name) {
     vector_roots.push_back(std::make_tuple(name, vec));
   }
 
-  void TracePointers(std::function<void(std::tuple<const char*, Sexp**>)> func) {
-    for (auto& it : roots) {
+  void
+  TracePointers(std::function<void(std::tuple<const char *, Sexp **>)> func) {
+    for (auto &it : roots) {
       func(it);
     }
 
-    for (auto& vec : vector_roots) {
-      for (auto& root : *std::get<1>(vec)) {
-        Sexp** loc = &root;
+    for (auto &vec : vector_roots) {
+      for (auto &root : *std::get<1>(vec)) {
+        Sexp **loc = &root;
         func(std::make_tuple(std::get<0>(vec), loc));
       }
     }
@@ -79,7 +82,7 @@ public:
     protected_frame->Root(value, name);
   }
 
-  void ProtectVector(std::vector<Sexp*>* vec, const char *name) {
+  void ProtectVector(std::vector<Sexp *> *vec, const char *name) {
     assert(protected_frame != nullptr);
     protected_frame->Root(vec, name);
   }
@@ -118,8 +121,8 @@ public:
   __frame_prot.ProtectValue(&value, #value);
 
 // GC_PROTECTED_LOCAL_VECTOR declares a new vector of locals that is protected.
-#define GC_PROTECTED_LOCAL_VECTOR(value) \
-  std::vector<Sexp*> value;    \
+#define GC_PROTECTED_LOCAL_VECTOR(value)                                       \
+  std::vector<Sexp *> value;                                                   \
   __frame_prot.ProtectVector(&value, #value)
 
 class GcHeap;
@@ -226,7 +229,7 @@ public:
     return s;
   }
 
-  static Sexp* AllocateFunction(LambdaMeaning* func, Sexp* activation) {
+  static Sexp *AllocateFunction(LambdaMeaning *func, Sexp *activation) {
     GC_HELPER_FRAME;
     GC_PROTECT(activation);
 
@@ -239,7 +242,7 @@ public:
     return s;
   }
 
-  static Sexp* AllocateNativeFunction(NativeFunction func) {
+  static Sexp *AllocateNativeFunction(NativeFunction func) {
     assert(g_heap != nullptr);
     Sexp *s = g_heap->Allocate(true);
     assert(s != nullptr);
@@ -248,7 +251,7 @@ public:
     return s;
   }
 
-  static Sexp* AllocateMeaning(Meaning* meaning) {
+  static Sexp *AllocateMeaning(Meaning *meaning) {
     assert(g_heap != nullptr);
     Sexp *s = g_heap->Allocate(true);
     assert(s != nullptr);

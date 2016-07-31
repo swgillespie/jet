@@ -3,8 +3,8 @@
 #pragma once
 
 #include <assert.h>
-#include <stdint.h>
 #include <exception>
+#include <stdint.h>
 #include <string>
 
 #define UNUSED_PARAMETER(p) (void)p

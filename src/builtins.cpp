@@ -3,36 +3,31 @@
 //
 
 #include "builtins.h"
-#include "gc.h"
-#include "contract.h"
 #include "analysis.h"
+#include "contract.h"
+#include "gc.h"
 #include "interner.h"
 #include "reader.h"
 
 // Many thanks to "tinlyx" (http://stackoverflow.com/a/27826081) for
 // inspiring this template hack.
 template <typename T>
-struct FunctionTrait
-        : public FunctionTrait<decltype(&T::operator())>
-{};
+struct FunctionTrait : public FunctionTrait<decltype(&T::operator())> {};
 
 template <typename ReturnType, typename... Args>
-struct FunctionTrait<ReturnType (*)(Args...)>  {
-  typedef std::function<ReturnType (Args...)> f_type;
+struct FunctionTrait<ReturnType (*)(Args...)> {
+  typedef std::function<ReturnType(Args...)> f_type;
 };
 
 template <typename L>
-static typename FunctionTrait<L>::f_type
-MakeFunction(L l){
+static typename FunctionTrait<L>::f_type MakeFunction(L l) {
   return (typename FunctionTrait<L>::f_type)(l);
 }
 
 // Loads a single builtin function into the given activation.
-template<typename F>
-void LoadSingleBuiltin(Sexp* activation, const char* name, F func) {
-  CONTRACT {
-    PRECONDITION(activation->IsActivation());
-  }
+template <typename F>
+void LoadSingleBuiltin(Sexp *activation, const char *name, F func) {
+  CONTRACT { PRECONDITION(activation->IsActivation()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(activation);
@@ -41,11 +36,12 @@ void LoadSingleBuiltin(Sexp* activation, const char* name, F func) {
   auto stdfnc = MakeFunction(func);
   alloced_func = GcHeap::AllocateNativeFunction(stdfnc);
   size_t up, right;
-  std::tie(up, right) = g_the_environment->DefineGlobal(SymbolInterner::InternSymbol(name));
+  std::tie(up, right) =
+      g_the_environment->DefineGlobal(SymbolInterner::InternSymbol(name));
   activation->activation->Set(up, right, alloced_func);
 }
 
-Sexp* Builtin_Add(Sexp* fst, Sexp* snd) {
+Sexp *Builtin_Add(Sexp *fst, Sexp *snd) {
   GC_HELPER_FRAME;
   GC_PROTECT(fst);
   GC_PROTECT(snd);
@@ -61,7 +57,7 @@ Sexp* Builtin_Add(Sexp* fst, Sexp* snd) {
   return GcHeap::AllocateFixnum(fst->fixnum_value + snd->fixnum_value);
 }
 
-Sexp* Builtin_Sub(Sexp* fst, Sexp* snd) {
+Sexp *Builtin_Sub(Sexp *fst, Sexp *snd) {
   GC_HELPER_FRAME;
   GC_PROTECT(fst);
   GC_PROTECT(snd);
@@ -77,7 +73,7 @@ Sexp* Builtin_Sub(Sexp* fst, Sexp* snd) {
   return GcHeap::AllocateFixnum(fst->fixnum_value - snd->fixnum_value);
 }
 
-Sexp* Builtin_Mul(Sexp* fst, Sexp* snd) {
+Sexp *Builtin_Mul(Sexp *fst, Sexp *snd) {
   GC_HELPER_FRAME;
   GC_PROTECT(fst);
   GC_PROTECT(snd);
@@ -93,7 +89,7 @@ Sexp* Builtin_Mul(Sexp* fst, Sexp* snd) {
   return GcHeap::AllocateFixnum(fst->fixnum_value * snd->fixnum_value);
 }
 
-Sexp* Builtin_Div(Sexp* fst, Sexp* snd) {
+Sexp *Builtin_Div(Sexp *fst, Sexp *snd) {
   GC_HELPER_FRAME;
   GC_PROTECT(fst);
   GC_PROTECT(snd);
@@ -113,7 +109,7 @@ Sexp* Builtin_Div(Sexp* fst, Sexp* snd) {
   return GcHeap::AllocateFixnum(fst->fixnum_value / snd->fixnum_value);
 }
 
-Sexp* Builtin_Car(Sexp* cons) {
+Sexp *Builtin_Car(Sexp *cons) {
   GC_HELPER_FRAME;
   GC_PROTECT(cons);
 
@@ -124,7 +120,7 @@ Sexp* Builtin_Car(Sexp* cons) {
   return cons->Car();
 }
 
-Sexp* Builtin_Cdr(Sexp* cons) {
+Sexp *Builtin_Cdr(Sexp *cons) {
   GC_HELPER_FRAME;
   GC_PROTECT(cons);
 
@@ -135,7 +131,7 @@ Sexp* Builtin_Cdr(Sexp* cons) {
   return cons->Cdr();
 }
 
-Sexp* Builtin_Cons(Sexp* fst, Sexp* snd) {
+Sexp *Builtin_Cons(Sexp *fst, Sexp *snd) {
   GC_HELPER_FRAME;
   GC_PROTECT(fst);
   GC_PROTECT(snd);
@@ -143,11 +139,9 @@ Sexp* Builtin_Cons(Sexp* fst, Sexp* snd) {
   return GcHeap::AllocateCons(fst, snd);
 }
 
-Sexp* Builtin_Read() {
-  return Read(std::cin);
-}
+Sexp *Builtin_Read() { return Read(std::cin); }
 
-Sexp* Builtin_Eval(Sexp* form) {
+Sexp *Builtin_Eval(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(analyzed);
@@ -166,10 +160,8 @@ Sexp* Builtin_Eval(Sexp* form) {
   return Evaluate(analyzed, act);
 }
 
-Sexp* Builtin_Print(Sexp* form) {
-  CONTRACT {
-    FORBID_GC;
-  }
+Sexp *Builtin_Print(Sexp *form) {
+  CONTRACT { FORBID_GC; }
 
   // print strings without quotes.
   if (form->IsString()) {
@@ -182,10 +174,8 @@ Sexp* Builtin_Print(Sexp* form) {
   return GcHeap::AllocateEmpty();
 }
 
-Sexp* Builtin_Println(Sexp* form) {
-  CONTRACT {
-    FORBID_GC;
-  }
+Sexp *Builtin_Println(Sexp *form) {
+  CONTRACT { FORBID_GC; }
 
   // print strings without quotes.
   if (form->IsString()) {
@@ -198,11 +188,8 @@ Sexp* Builtin_Println(Sexp* form) {
   return GcHeap::AllocateEmpty();
 }
 
-
 void LoadBuiltins(Sexp *activation) {
-  CONTRACT {
-    PRECONDITION(activation->IsActivation());
-  }
+  CONTRACT { PRECONDITION(activation->IsActivation()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(activation);
@@ -219,4 +206,3 @@ void LoadBuiltins(Sexp *activation) {
   LoadSingleBuiltin(activation, "print", Builtin_Print);
   LoadSingleBuiltin(activation, "println", Builtin_Println);
 }
-

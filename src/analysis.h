@@ -5,10 +5,10 @@
 
 #pragma once
 
+#include "meaning.h"
+#include <memory>
 #include <unordered_map>
 #include <vector>
-#include <memory>
-#include "meaning.h"
 
 // An environment is a symbol table used for semantic analysis.
 class Environment {
@@ -18,9 +18,7 @@ private:
   std::vector<std::unordered_map<size_t, size_t>> slot_map;
 
 public:
-  Environment() {
-    slot_map.emplace_back();
-  }
+  Environment() { slot_map.emplace_back(); }
 
   ~Environment() {}
 
@@ -48,11 +46,9 @@ public:
   void Dump();
 };
 
-extern Environment* g_the_environment;
+extern Environment *g_the_environment;
 
 // Analyzes an s-expression and creates a Meaning from it,
 // suitable to be executed. This method throws a JetRuntimeException
 // if it encounters an ill-formed program.
-Sexp* Analyze(Sexp* form);
-
-
+Sexp *Analyze(Sexp *form);

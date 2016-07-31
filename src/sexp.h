@@ -3,8 +3,8 @@
 #include "util.h"
 #include <functional>
 #include <iostream>
-#include <utility>
 #include <sstream>
+#include <utility>
 
 typedef bool jet_bool;
 typedef int jet_fixnum;
@@ -17,8 +17,8 @@ struct Cons {
 };
 
 struct Function {
-  class LambdaMeaning* func_meaning;
-  Sexp* activation;
+  class LambdaMeaning *func_meaning;
+  Sexp *activation;
 };
 
 // This excessive use of templates is to ensure that we always safely
@@ -28,25 +28,27 @@ struct Function {
 // This helper ultimately calls the native function by indexing the
 // argument double-pointer given here, which is a pointer into a vector
 // maintained by the runtime.
-template<typename Ret, typename ...Args, size_t...Index>
-Ret NativeFunctionHelper(std::function<Ret(Args...)> wrapped, Sexp** args, std::index_sequence<Index...>) {
+template <typename Ret, typename... Args, size_t... Index>
+Ret NativeFunctionHelper(std::function<Ret(Args...)> wrapped, Sexp **args,
+                         std::index_sequence<Index...>) {
   return wrapped(args[Index]...);
 }
 
 // A wrapper around a native function that can be finalized by the runtime
 // when it goes out of scope.
 struct NativeFunction {
-  std::function<Sexp*(Sexp**)>* func;
+  std::function<Sexp *(Sexp **)> *func;
   size_t arity;
 
-  NativeFunction(std::function<Sexp*(Sexp**)>* func, size_t arity)
-          : func(func), arity(arity) {}
+  NativeFunction(std::function<Sexp *(Sexp **)> *func, size_t arity)
+      : func(func), arity(arity) {}
 
-  template<typename Ret, typename ...Args>
+  template <typename Ret, typename... Args>
   NativeFunction(std::function<Ret(Args...)> wrapped) {
     arity = sizeof...(Args);
-    func = new std::function<Sexp*(Sexp**)>([=](Sexp** args) {
-      return NativeFunctionHelper(wrapped, args, std::make_index_sequence<sizeof...(Args)>{});
+    func = new std::function<Sexp *(Sexp **)>([=](Sexp **args) {
+      return NativeFunctionHelper(wrapped, args,
+                                  std::make_index_sequence<sizeof...(Args)>{});
     });
   }
 
@@ -91,7 +93,7 @@ struct Sexp {
     Function function;
     // A meaning. Generally not exposed to the user,
     // but it's here so that it can be GC'd.
-    class Meaning* meaning;
+    class Meaning *meaning;
   };
 
   // Padding to ensure that the size of this structure evenly
@@ -123,7 +125,9 @@ struct Sexp {
   inline bool IsActivation() const { return kind == Sexp::Kind::ACTIVATION; }
 
   // Returns true if this sexp is a native function.
-  inline bool IsNativeFunction() const { return kind == Sexp::Kind::NATIVE_FUNCTION; }
+  inline bool IsNativeFunction() const {
+    return kind == Sexp::Kind::NATIVE_FUNCTION;
+  }
 
   // Returns true if this sexp is a function.
   inline bool IsFunction() const { return kind == Sexp::Kind::FUNCTION; }
@@ -137,12 +141,12 @@ struct Sexp {
     return !(IsEmpty() || IsCons() || IsSymbol());
   }
 
-  inline Sexp* Car() const {
+  inline Sexp *Car() const {
     assert(IsCons());
     return cons.car;
   }
 
-  inline Sexp* Cdr() const {
+  inline Sexp *Cdr() const {
     assert(IsCons());
     return cons.cdr;
   }
@@ -161,7 +165,7 @@ struct Sexp {
   }
 
   // Iterates through a proper list.
-  void ForEach(std::function<void(Sexp*)> func);
+  void ForEach(std::function<void(Sexp *)> func);
 
   // Returns a tuple of whether or not the list is proper and the list's length.
   // A length of 0 on an improper list indicates it's not a list, while an
@@ -194,7 +198,8 @@ struct Sexp {
   // Returns true if this is a proper list, false otherwise.
   // A list is proper if every car is a Cons or Empty.
   inline bool IsProperList() const {
-    if (IsEmpty()) return true;
+    if (IsEmpty())
+      return true;
     bool is_proper;
     std::tie(is_proper, std::ignore) = Length();
     return is_proper;
@@ -205,7 +210,7 @@ struct Sexp {
   inline bool IsTruthy() const { return !(IsBool() && !this->bool_value); }
 
   // Trace all of the pointers contained in this sexp.
-  void TracePointers(std::function<void(Sexp**)> func);
+  void TracePointers(std::function<void(Sexp **)> func);
 
   // Finalizes this sexp. Should only be called by the garbage collector.
   void Finalize();

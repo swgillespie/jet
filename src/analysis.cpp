@@ -3,15 +3,15 @@
 //
 
 #include "analysis.h"
-#include "interner.h"
 #include "contract.h"
 #include "gc.h"
+#include "interner.h"
 
 #include <iostream>
 
 using namespace std::literals;
 
-Environment* g_the_environment;
+Environment *g_the_environment;
 
 std::tuple<size_t, size_t> Environment::Get(size_t symbol) {
   // starting at the most recent lexical environment, search upwards
@@ -27,29 +27,26 @@ std::tuple<size_t, size_t> Environment::Get(size_t symbol) {
     up_index++;
   }
 
-  throw JetRuntimeException("possibly unbound symbol: "s + SymbolInterner::GetSymbol(symbol));
+  throw JetRuntimeException("possibly unbound symbol: "s +
+                            SymbolInterner::GetSymbol(symbol));
 }
 
 void Environment::Define(size_t symbol) {
-  std::unordered_map<size_t, size_t>& env = slot_map.back();
+  std::unordered_map<size_t, size_t> &env = slot_map.back();
   size_t idx = env.size();
   env[symbol] = idx;
 }
 
 std::tuple<size_t, size_t> Environment::DefineGlobal(size_t symbol) {
-  std::unordered_map<size_t, size_t>& env = slot_map.front();
+  std::unordered_map<size_t, size_t> &env = slot_map.front();
   size_t idx = env.size();
   env[symbol] = idx;
   return std::make_tuple(slot_map.size() - 1, idx);
 }
 
-void Environment::EnterScope() {
-  slot_map.emplace_back();
-}
+void Environment::EnterScope() { slot_map.emplace_back(); }
 
-void Environment::ExitScope() {
-  slot_map.pop_back();
-}
+void Environment::ExitScope() { slot_map.pop_back(); }
 
 void Environment::Dump() {
   size_t index = 0;
@@ -63,10 +60,8 @@ void Environment::Dump() {
   std::cout << std::endl;
 }
 
-static Sexp* AnalyzeAtom(Sexp* form) {
-  CONTRACT {
-    PRECONDITION(!form->IsCons());
-  }
+static Sexp *AnalyzeAtom(Sexp *form) {
+  CONTRACT { PRECONDITION(!form->IsCons()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(form);
@@ -85,13 +80,14 @@ static Sexp* AnalyzeAtom(Sexp* form) {
     //
     // The solution to this problem is to allocate the Meaning separately,
     // protect any pointers that it has, and /then/ call AllocateMeaning.
-    // In this way we can ensure that any pointers contained in under-construction
+    // In this way we can ensure that any pointers contained in
+    // under-construction
     // meanings get relocated if they need to.
     //
     // Note that we only have to do this if the meaning we are creating
     // contains managed pointers. If it doesn't, we don't care - we can
     // do whatever we want.
-    QuotedMeaning* meaning = new QuotedMeaning(form);
+    QuotedMeaning *meaning = new QuotedMeaning(form);
     GC_PROTECT(meaning->Quoted());
     return GcHeap::AllocateMeaning(meaning);
   }
@@ -99,14 +95,15 @@ static Sexp* AnalyzeAtom(Sexp* form) {
   if (form->IsSymbol()) {
     size_t up_index;
     size_t right_index;
-    std::tie(up_index, right_index) = g_the_environment->Get(form->symbol_value);
+    std::tie(up_index, right_index) =
+        g_the_environment->Get(form->symbol_value);
     return GcHeap::AllocateMeaning(new ReferenceMeaning(up_index, right_index));
   }
 
   PANIC("unknown s-expression being analyzed");
 }
 
-static Sexp* AnalyzeQuote(Sexp* form) {
+static Sexp *AnalyzeQuote(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
 
@@ -117,12 +114,12 @@ static Sexp* AnalyzeQuote(Sexp* form) {
     throw JetRuntimeException("invalid quote form");
   }
 
-  QuotedMeaning* meaning = new QuotedMeaning(form->Car());
+  QuotedMeaning *meaning = new QuotedMeaning(form->Car());
   GC_PROTECT(meaning->Quoted());
   return GcHeap::AllocateMeaning(meaning);
 }
 
-static Sexp* AnalyzeBegin(Sexp* form) {
+static Sexp *AnalyzeBegin(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(last);
@@ -132,7 +129,7 @@ static Sexp* AnalyzeBegin(Sexp* form) {
     throw JetRuntimeException("invalid begin form");
   }
 
-  form->ForEach([&](Sexp* form) {
+  form->ForEach([&](Sexp *form) {
     GC_HELPER_FRAME;
     GC_PROTECT(form);
     GC_PROTECTED_LOCAL(analysis_result);
@@ -143,13 +140,13 @@ static Sexp* AnalyzeBegin(Sexp* form) {
 
   last = body.back();
   body.pop_back();
-  SequenceMeaning* meaning = new SequenceMeaning(std::move(body), last);
+  SequenceMeaning *meaning = new SequenceMeaning(std::move(body), last);
   GC_PROTECT_VECTOR(meaning->Body());
   GC_PROTECT(meaning->FinalForm());
   return GcHeap::AllocateMeaning(meaning);
 }
 
-static Sexp* AnalyzeDefine(Sexp* form) {
+static Sexp *AnalyzeDefine(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(binding);
@@ -170,12 +167,13 @@ static Sexp* AnalyzeDefine(Sexp* form) {
   size_t right_index;
   std::tie(up_index, right_index) = g_the_environment->DefineGlobal(sym_name);
   binding = Analyze(form->Cadr());
-  DefinitionMeaning* meaning = new DefinitionMeaning(up_index, right_index, binding);
+  DefinitionMeaning *meaning =
+      new DefinitionMeaning(up_index, right_index, binding);
   GC_PROTECT(meaning->BindingValue());
   return GcHeap::AllocateMeaning(meaning);
 }
 
-static Sexp* AnalyzeIf(Sexp* form) {
+static Sexp *AnalyzeIf(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(cond);
@@ -192,14 +190,15 @@ static Sexp* AnalyzeIf(Sexp* form) {
   cond = Analyze(form->Car());
   true_branch = Analyze(form->Cadr());
   false_branch = Analyze(form->Caddr());
-  ConditionalMeaning* meaning = new ConditionalMeaning(cond, true_branch, false_branch);
+  ConditionalMeaning *meaning =
+      new ConditionalMeaning(cond, true_branch, false_branch);
   GC_PROTECT(meaning->Condition());
   GC_PROTECT(meaning->TrueBranch());
   GC_PROTECT(meaning->FalseBranch());
   return GcHeap::AllocateMeaning(meaning);
 }
 
-static Sexp* AnalyzeLambda(Sexp* form) {
+static Sexp *AnalyzeLambda(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(params);
@@ -209,7 +208,8 @@ static Sexp* AnalyzeLambda(Sexp* form) {
   size_t len;
   std::tie(is_proper, len) = form->Length();
   if (!is_proper || len != 2) {
-    throw JetRuntimeException("invalid lambda form: form not appropriate number of elements");
+    throw JetRuntimeException(
+        "invalid lambda form: form not appropriate number of elements");
   }
 
   params = form->Car();
@@ -220,11 +220,12 @@ static Sexp* AnalyzeLambda(Sexp* form) {
   // TODO(feature) - variadic functions use improper lists
   // in the lambda form
   if (!params->IsProperList()) {
-    throw JetRuntimeException("invalid lambda form: parameter form not a proper list");
+    throw JetRuntimeException(
+        "invalid lambda form: parameter form not a proper list");
   }
 
   g_the_environment->EnterScope();
-  params->ForEach([&](Sexp* argument) {
+  params->ForEach([&](Sexp *argument) {
     GC_HELPER_FRAME;
     GC_PROTECT(argument);
 
@@ -238,12 +239,12 @@ static Sexp* AnalyzeLambda(Sexp* form) {
   body = Analyze(form->Cadr());
   g_the_environment->ExitScope();
   std::tie(std::ignore, len) = params->Length();
-  LambdaMeaning* meaning = new LambdaMeaning(len, body);
+  LambdaMeaning *meaning = new LambdaMeaning(len, body);
   GC_PROTECT(meaning->Body());
   return GcHeap::AllocateMeaning(meaning);
 }
 
-static Sexp* AnalyzeSet(Sexp* form) {
+static Sexp *AnalyzeSet(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(binding);
@@ -264,12 +265,12 @@ static Sexp* AnalyzeSet(Sexp* form) {
   size_t sym_name = form->Car()->symbol_value;
   std::tie(up_index, right_index) = g_the_environment->Get(sym_name);
   binding = Analyze(form->Cdr());
-  SetMeaning* meaning = new SetMeaning(up_index, right_index, binding);
+  SetMeaning *meaning = new SetMeaning(up_index, right_index, binding);
   GC_PROTECT(meaning->BindingValue());
   return GcHeap::AllocateMeaning(meaning);
 }
 
-static Sexp* AnalyzeInvocation(Sexp* form) {
+static Sexp *AnalyzeInvocation(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(base);
@@ -282,7 +283,7 @@ static Sexp* AnalyzeInvocation(Sexp* form) {
   }
 
   base = Analyze(form->Car());
-  form->Cdr()->ForEach([&](Sexp* arg) {
+  form->Cdr()->ForEach([&](Sexp *arg) {
     GC_HELPER_FRAME;
     GC_PROTECT(arg);
     GC_PROTECTED_LOCAL(analyze_result);
@@ -291,13 +292,14 @@ static Sexp* AnalyzeInvocation(Sexp* form) {
     arguments.push_back(analyze_result);
   });
 
-  InvocationMeaning* meaning = new InvocationMeaning(base, std::move(arguments));
+  InvocationMeaning *meaning =
+      new InvocationMeaning(base, std::move(arguments));
   GC_PROTECT(meaning->Base());
   GC_PROTECT_VECTOR(meaning->Arguments());
   return GcHeap::AllocateMeaning(meaning);
 }
 
-Sexp* Analyze(Sexp* form) {
+Sexp *Analyze(Sexp *form) {
   CONTRACT {
     PRECONDITION(form != nullptr);
     PRECONDITION(g_the_environment != nullptr);
@@ -312,20 +314,20 @@ Sexp* Analyze(Sexp* form) {
 
   if (form->Car()->IsSymbol()) {
     switch (form->Car()->symbol_value) {
-      case SymbolInterner::Quote:
-        return AnalyzeQuote(form->Cdr());
-      case SymbolInterner::Begin:
-        return AnalyzeBegin(form->Cdr());
-      case SymbolInterner::Define:
-        return AnalyzeDefine(form->Cdr());
-      case SymbolInterner::If:
-        return AnalyzeIf(form->Cdr());
-      case SymbolInterner::Lambda:
-        return AnalyzeLambda(form->Cdr());
-      case SymbolInterner::SetBang:
-        return AnalyzeSet(form->Cdr());
-      default:
-        return AnalyzeInvocation(form);
+    case SymbolInterner::Quote:
+      return AnalyzeQuote(form->Cdr());
+    case SymbolInterner::Begin:
+      return AnalyzeBegin(form->Cdr());
+    case SymbolInterner::Define:
+      return AnalyzeDefine(form->Cdr());
+    case SymbolInterner::If:
+      return AnalyzeIf(form->Cdr());
+    case SymbolInterner::Lambda:
+      return AnalyzeLambda(form->Cdr());
+    case SymbolInterner::SetBang:
+      return AnalyzeSet(form->Cdr());
+    default:
+      return AnalyzeInvocation(form);
     }
   }
 
@@ -333,5 +335,3 @@ Sexp* Analyze(Sexp* form) {
   // ((lambda (x) (+ x 1)) 1)
   return AnalyzeInvocation(form);
 }
-
-

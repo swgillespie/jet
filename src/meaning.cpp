@@ -1,6 +1,6 @@
 #include "meaning.h"
-#include "gc.h"
 #include "contract.h"
+#include "gc.h"
 
 Trampoline QuotedMeaning::Eval(Sexp *act) {
   CONTRACT {
@@ -12,7 +12,6 @@ Trampoline QuotedMeaning::Eval(Sexp *act) {
   return Trampoline(quoted);
 }
 
-
 Trampoline ReferenceMeaning::Eval(Sexp *act) {
   CONTRACT {
     FORBID_GC;
@@ -22,11 +21,8 @@ Trampoline ReferenceMeaning::Eval(Sexp *act) {
   return Trampoline(act->activation->Get(up_index, right_index));
 }
 
-
 Trampoline DefinitionMeaning::Eval(Sexp *act) {
-  CONTRACT {
-    PRECONDITION(act->IsActivation());
-  }
+  CONTRACT { PRECONDITION(act->IsActivation()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(act);
@@ -35,12 +31,9 @@ Trampoline DefinitionMeaning::Eval(Sexp *act) {
   act->activation->Set(up_index, right_index, value);
   return Trampoline(GcHeap::AllocateEmpty());
 }
-
 
 Trampoline SetMeaning::Eval(Sexp *act) {
-  CONTRACT {
-    PRECONDITION(act->IsActivation());
-  }
+  CONTRACT { PRECONDITION(act->IsActivation()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(act);
@@ -51,11 +44,8 @@ Trampoline SetMeaning::Eval(Sexp *act) {
   return Trampoline(GcHeap::AllocateEmpty());
 }
 
-
 Trampoline ConditionalMeaning::Eval(Sexp *act) {
-  CONTRACT {
-    PRECONDITION(act->IsActivation());
-  }
+  CONTRACT { PRECONDITION(act->IsActivation()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(act);
@@ -69,27 +59,21 @@ Trampoline ConditionalMeaning::Eval(Sexp *act) {
   }
 }
 
-
 Trampoline SequenceMeaning::Eval(Sexp *act) {
-  CONTRACT {
-    PRECONDITION(act->IsActivation());
-  }
+  CONTRACT { PRECONDITION(act->IsActivation()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(act);
 
-  for (auto& entry : body) {
+  for (auto &entry : body) {
     Evaluate(entry, act);
   }
 
   return Trampoline(act, final_form);
 }
 
-
 Trampoline LambdaMeaning::Eval(Sexp *act) {
-  CONTRACT {
-    PRECONDITION(act->IsActivation());
-  }
+  CONTRACT { PRECONDITION(act->IsActivation()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(act);
@@ -97,11 +81,8 @@ Trampoline LambdaMeaning::Eval(Sexp *act) {
   return GcHeap::AllocateFunction(this, act);
 }
 
-
 Trampoline InvocationMeaning::Eval(Sexp *act) {
-  CONTRACT {
-    PRECONDITION(act->IsActivation());
-  }
+  CONTRACT { PRECONDITION(act->IsActivation()); }
 
   GC_HELPER_FRAME;
   GC_PROTECT(act);
@@ -122,8 +103,9 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
     // we have to 1) evaluate the args, 2) create a new activation,
     // 3) place the arguments into the new activation
     size_t right_index = 0;
-    child_act = GcHeap::AllocateActivation(called_expr->function.activation->activation);
-    for (auto& argument : arguments) {
+    child_act = GcHeap::AllocateActivation(
+        called_expr->function.activation->activation);
+    for (auto &argument : arguments) {
       eval_arg = Evaluate(argument, act);
       child_act->activation->Set(0, right_index++, eval_arg);
     }
@@ -140,7 +122,7 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
 
   // second, eval all our arguments and store them in a vector.
   GC_PROTECTED_LOCAL_VECTOR(args);
-  for (auto& argument : arguments) {
+  for (auto &argument : arguments) {
     eval_arg = Evaluate(argument, act);
     args.push_back(eval_arg);
   }
@@ -157,7 +139,7 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
   return Trampoline(ret);
 }
 
-Sexp* Evaluate(Sexp* meaning, Sexp* act) {
+Sexp *Evaluate(Sexp *meaning, Sexp *act) {
   GC_HELPER_FRAME;
 
   Trampoline result(act, meaning);

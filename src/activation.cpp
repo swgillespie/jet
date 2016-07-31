@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-Activation* g_global_activation;
+Activation *g_global_activation;
 
 Sexp *Activation::Get(size_t up_index, size_t right_index) {
   CONTRACT { FORBID_GC; }

@@ -12,8 +12,7 @@ private:
   std::vector<Sexp *> slots;
 
 public:
-  Activation(Activation *parent_act)
-      : parent(parent_act), slots() {}
+  Activation(Activation *parent_act) : parent(parent_act), slots() {}
 
   ~Activation() {}
 
@@ -49,4 +48,4 @@ public:
 
 // Eval needs to know the global activation currently in use,
 // so it's stored here.
-extern Activation* g_global_activation;
+extern Activation *g_global_activation;

@@ -1,8 +1,8 @@
 #include "sexp.h"
 #include "activation.h"
+#include "gc.h"
 #include "interner.h"
 #include "meaning.h"
-#include "gc.h"
 
 #include <iostream>
 
@@ -31,7 +31,7 @@ void Sexp::Finalize() {
     // TODO this screws up everything.
     // I'm choosing to leak meanings for now
     // until I figure out how to address this correctly.
-    //delete this->meaning;
+    // delete this->meaning;
 
     return;
   }
@@ -145,21 +145,21 @@ void Sexp::Dump(std::ostream &stream) const {
 
 void Sexp::TracePointers(std::function<void(Sexp **)> func) {
   switch (kind) {
-    case Sexp::Kind::CONS:
-      func(&this->cons.car);
-      func(&this->cons.cdr);
-      break;
-    case Sexp::Kind::FUNCTION:
-      this->function.func_meaning->TracePointers(func);
-      func(&this->function.activation);
-      break;
-    case Sexp::Kind::ACTIVATION:
-      this->activation->TracePointers(func);
-      break;
-    case Sexp::Kind::MEANING:
-      this->meaning->TracePointers(func);
-    default:
-      break;
+  case Sexp::Kind::CONS:
+    func(&this->cons.car);
+    func(&this->cons.cdr);
+    break;
+  case Sexp::Kind::FUNCTION:
+    this->function.func_meaning->TracePointers(func);
+    func(&this->function.activation);
+    break;
+  case Sexp::Kind::ACTIVATION:
+    this->activation->TracePointers(func);
+    break;
+  case Sexp::Kind::MEANING:
+    this->meaning->TracePointers(func);
+  default:
+    break;
   }
 }
 
@@ -176,7 +176,3 @@ void Sexp::ForEach(std::function<void(Sexp *)> func) {
     cursor = cursor->Cdr();
   }
 }
-
-
-
-

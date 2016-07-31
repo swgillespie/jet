@@ -1,14 +1,14 @@
+#include "analysis.h"
+#include "builtins.h"
 #include "contract.h"
 #include "gc.h"
 #include "interner.h"
 #include "reader.h"
 #include "sexp.h"
-#include "analysis.h"
-#include "builtins.h"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
-int ActualMain(char* filename) {
+int ActualMain(char *filename) {
   GC_HELPER_FRAME;
   GC_PROTECTED_LOCAL(read);
   GC_PROTECTED_LOCAL(activation);
@@ -28,10 +28,10 @@ int ActualMain(char* filename) {
 
       meaning = Analyze(read);
       Evaluate(meaning, activation);
-    } catch (JetRuntimeException& exn) {
+    } catch (JetRuntimeException &exn) {
       std::cerr << "runtime error: " << exn.what() << std::endl;
       return 1;
-    } catch (ReadException& exn) {
+    } catch (ReadException &exn) {
       std::cerr << "read error: " << exn.what() << std::endl;
       return 1;
     }
@@ -41,7 +41,7 @@ int ActualMain(char* filename) {
 void InitializeRuntime() {
   GcHeap::Initialize();
   SymbolInterner::Initialize();
-  //GcHeap::ToggleStressMode();
+  // GcHeap::ToggleStressMode();
   g_frames = new Frame("<global>", nullptr);
   g_current_frame = g_frames;
 #ifdef DEBUG
@@ -51,7 +51,7 @@ void InitializeRuntime() {
   g_the_environment = new Environment();
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   InitializeRuntime();
   if (argc != 2) {
     std::cout << "usage: jet <file.jet>" << std::endl;

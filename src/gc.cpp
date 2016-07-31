@@ -59,7 +59,7 @@ template <typename F> void ScanRoots(F func) {
        frame = frame->GetParent()) {
     DebugLog("scanning roots for frame '%s'", frame->GetName());
     // each frame in turn maintains a list of rooted pointers.
-    frame->TracePointers([&](std::tuple<const char*, Sexp**> root) {
+    frame->TracePointers([&](std::tuple<const char *, Sexp **> root) {
       // roots may be null, since a GC may occur before a GC reference is
       // assigned to a protected slot. This is normal and OK.
       DebugLog("  found root: %s (%p)", std::get<0>(root), *std::get<1>(root));
@@ -185,7 +185,7 @@ public:
       // this pointer has already been relocated - we have to
       // process its transitive closure now.
       ptr->TracePointers([&](Sexp **ref) {
-        uint8_t* candidate = (uint8_t*)*ref;
+        uint8_t *candidate = (uint8_t *)*ref;
         if (candidate >= tospace && candidate < top) {
           // if this pointer points into tospace, that means
           // we've already relocated it and updated the pointer
@@ -264,7 +264,7 @@ public:
       to_ref = Copy(ptr);
     }
 
-    //DebugLog("processed value: %s", to_ref->DumpString().c_str());
+    // DebugLog("processed value: %s", to_ref->DumpString().c_str());
     assert(to_ref != nullptr);
     return to_ref;
   }
@@ -277,7 +277,8 @@ public:
     // doesn't cross the fromspace/tospace boundary.
     DebugLog("[%d] relocating: %p -> %p", gc_number, from_ref, to_ref);
 #ifdef DEBUG
-    assert(from_ref->padding != 0xabababababababab && "relocating an invalid object");
+    assert(from_ref->padding != 0xabababababababab &&
+           "relocating an invalid object");
 #endif
     memcpy(to_ref, from_ref, sizeof(Sexp));
 
@@ -315,7 +316,7 @@ public:
 #ifdef DEBUG
     DebugLog("[%d] verifying heap", gc_number);
     std::vector<Sexp *> stack;
-    std::unordered_set<Sexp*> visited;
+    std::unordered_set<Sexp *> visited;
     ScanRoots([&](Sexp **ptr) {
       if (ptr == nullptr || *ptr == nullptr) {
         return;
@@ -354,7 +355,8 @@ public:
         stack.push_back(*child);
       });
 
-      //DebugLog("heap verify: object %s is reachable", ptr->DumpString().c_str());
+      // DebugLog("heap verify: object %s is reachable",
+      // ptr->DumpString().c_str());
     }
 #endif
   }
