@@ -22,6 +22,7 @@
 #include <list>
 #include <stack>
 #include <unordered_map>
+#include <cstdarg>
 
 #ifdef DEBUG
 #define GC_DEBUG_LOG_SIZE 256
@@ -89,6 +90,34 @@ template <typename F> void ScanRoots(F func) {
   }
 }
 
+// Maps the heap, calling whatever platform APIs we need to do so.
+// On Unixes, we map the heap using mmap. On Windows, we'll use VirtualAlloc.
+uint8_t *MapTheHeap(size_t page_number) {
+#ifndef _WIN32
+  void *heap =
+      mmap(nullptr, PAGE_SIZE * page_number, PROT_READ | PROT_WRITE,
+            MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  if (heap == (void *)-1) {
+    std::string msg(strerror(errno));
+    std::string result = "failed to allocate heap: " + msg;
+    PANIC(result.c_str());
+  }
+
+  return (uint8_t*)heap;
+#else
+  PANIC("not implemented: windows");
+#endif
+}
+
+// Unmaps the heap, either by calling munmap or VirtualFree.
+void UnmapTheHeap(uint8_t *heap, size_t size) {
+#ifndef _WIN32
+  munmap(heap, size);
+#else
+  PANIC("not implemented: windows")
+#endif
+}
+
 // Jet's GC is a semispace copying collector. It partitions
 // the heap into two distinct regions: the "fromspace" and "tospace".
 // When a GC occurs, the two regions are swapped and all live objects
@@ -112,15 +141,7 @@ private:
 
 public:
   GcHeapImpl() {
-    void *heap =
-        mmap(nullptr, PAGE_SIZE * number_of_pages, PROT_READ | PROT_WRITE,
-             MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    if (heap == (void *)-1) {
-      std::string msg(strerror(errno));
-      std::string result = "failed to allocate heap: " + msg;
-      PANIC(result.c_str());
-    }
-
+    uint8_t *heap = MapTheHeap(number_of_pages);
     heap_start = (uint8_t *)heap;
     heap_end = heap_start + PAGE_SIZE * number_of_pages;
     tospace = heap_start;
@@ -133,7 +154,7 @@ public:
     assert(heap_start < heap_end);
   }
 
-  ~GcHeapImpl() { munmap(heap_start, PAGE_SIZE * number_of_pages); }
+  ~GcHeapImpl() { UnmapTheHeap(heap_start, PAGE_SIZE * number_of_pages); }
 
   GcHeapImpl(const GcHeapImpl &) = delete;
   GcHeapImpl &operator=(const GcHeapImpl &) = delete;

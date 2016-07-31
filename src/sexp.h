@@ -50,6 +50,11 @@ struct Function {
 template <typename Ret, typename... Args, size_t... Index>
 Ret NativeFunctionHelper(std::function<Ret(Args...)> wrapped, Sexp **args,
                          std::index_sequence<Index...>) {
+  // GCC is silly and doesn't think that args is being used here,
+  // despite it obviously being used by the parameter pack below.
+#ifdef __GNUG__
+  UNUSED_PARAMETER(args);
+#endif
   return wrapped(args[Index]...);
 }
 

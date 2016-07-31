@@ -24,6 +24,7 @@
 #include "sexp.h"
 #include <memory>
 #include <vector>
+#include <cstring>
 
 // When execution crosses into native code, the interpreter
 // will need to inform the GC that certain values are live
