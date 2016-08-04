@@ -129,11 +129,12 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
   GC_PROTECTED_LOCAL(eval_arg)
 
   called_expr = Evaluate(base, act);
-  if (!called_expr->IsFunction() && !called_expr->IsNativeFunction()) {
+  if (!called_expr->IsFunction() && !called_expr->IsNativeFunction() &&
+      !called_expr->IsMacro()) {
     throw JetRuntimeException("called a non-callable value");
   }
 
-  if (called_expr->IsFunction()) {
+  if (called_expr->IsFunction() || called_expr->IsMacro()) {
     if (called_expr->function.func_meaning->IsVariadic()) {
       // if this is a variadic function, all we need to do is
       // ensure we called this with at least the number of required args.
@@ -147,17 +148,18 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
       }
     }
 
-    // we have to 1) evaluate the args, 2) create a new activation,
-    // 3) place the arguments into the new activation.
+    // we have to
+    //   1) evaluate the args (if this isn't a macro),
+    //   2) create a new activation,
+    //   3) place the arguments into the new activation.
     // if this function is variadic, we need all "rest" arguments
     // to be bound to the final arg (arity + 1)
     size_t right_index = 0;
-    child_act = GcHeap::AllocateActivation(
-        called_expr->function.activation->activation);
+    child_act = GcHeap::AllocateActivation(called_expr->function.activation);
     auto it = arguments.begin();
     for (size_t i = 0; i < called_expr->function.func_meaning->Arity();
          it++, i++) {
-      eval_arg = Evaluate(*it, act);
+        eval_arg = Evaluate(*it, act);
       child_act->activation->Set(0, right_index++, eval_arg);
     }
 

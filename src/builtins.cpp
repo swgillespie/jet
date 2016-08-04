@@ -170,6 +170,8 @@ Sexp *Builtin_Eval(Sexp *form) {
   analyzed = Analyze(form);
   g_the_environment->ExitScope();
 
+  //std::cout << "analyzed: " << analyzed->DumpString() << std::endl;
+
   // this creates a new child activation. Not sure if that's
   // right, but it works.
   act = GcHeap::AllocateActivation(g_global_activation);
@@ -214,6 +216,20 @@ Sexp *Builtin_Error(Sexp *form) {
   throw JetRuntimeException(form->string_value);
 }
 
+Sexp *Builtin_EofObject_P(Sexp *form) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
+
+  return GcHeap::AllocateBool(form->IsEof());
+}
+
+Sexp *Builtin_Not(Sexp *form) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
+
+  return GcHeap::AllocateBool(!form->IsTruthy());
+}
+
 void LoadBuiltins(Sexp *activation) {
   CONTRACT { PRECONDITION(activation->IsActivation()); }
 
@@ -232,4 +248,6 @@ void LoadBuiltins(Sexp *activation) {
   LoadSingleBuiltin(activation, "print", Builtin_Print);
   LoadSingleBuiltin(activation, "println", Builtin_Println);
   LoadSingleBuiltin(activation, "error", Builtin_Error);
+  LoadSingleBuiltin(activation, "eof-object?", Builtin_EofObject_P);
+  LoadSingleBuiltin(activation, "not", Builtin_Not);
 }

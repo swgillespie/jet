@@ -241,7 +241,10 @@ public:
     return s;
   }
 
-  static Sexp *AllocateActivation(Activation *parent) {
+  static Sexp *AllocateActivation(Sexp *parent) {
+    GC_HELPER_FRAME;
+    GC_PROTECT(parent);
+
     assert(g_heap != nullptr);
     Sexp *s = g_heap->Allocate(true);
     assert(s != nullptr);
@@ -255,7 +258,9 @@ public:
     GC_PROTECT(activation);
 
     assert(g_heap != nullptr);
-    Sexp *s = g_heap->Allocate(true);
+    assert(func != nullptr);
+    // TODO(segilles) fix the leak
+    Sexp *s = g_heap->Allocate(false);
     assert(s != nullptr);
     s->kind = Sexp::Kind::FUNCTION;
     s->function.func_meaning = func;
@@ -274,7 +279,9 @@ public:
 
   static Sexp *AllocateMeaning(Meaning *meaning) {
     assert(g_heap != nullptr);
-    Sexp *s = g_heap->Allocate(true);
+    assert(meaning != nullptr);
+    // TODO(segilles) fix the leak
+    Sexp *s = g_heap->Allocate(false);
     assert(s != nullptr);
     s->kind = Sexp::Kind::MEANING;
     s->meaning = meaning;
