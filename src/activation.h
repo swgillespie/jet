@@ -28,11 +28,11 @@
 // A new activation is introduced for every new syntactic scope.
 class Activation {
 private:
-  Activation *parent;
+  Sexp *parent;
   std::vector<Sexp *> slots;
 
 public:
-  Activation(Activation *parent_act) : parent(parent_act), slots() {}
+  Activation(Sexp *parent_act) : parent(parent_act), slots() {}
 
   ~Activation() {}
 
@@ -68,4 +68,4 @@ public:
 
 // Eval needs to know the global activation currently in use,
 // so it's stored here.
-extern Activation *g_global_activation;
+extern Sexp *g_global_activation;

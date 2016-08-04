@@ -43,7 +43,8 @@ void Sexp::Finalize() {
   }
 
   if (IsFunction()) {
-    delete this->function.func_meaning;
+    // TODO this also screws up everything.
+    // delete this->function.func_meaning;
     return;
   }
 
@@ -169,6 +170,7 @@ void Sexp::TracePointers(std::function<void(Sexp **)> func) {
     func(&this->cons.car);
     func(&this->cons.cdr);
     break;
+  case Sexp::Kind::MACRO:
   case Sexp::Kind::FUNCTION:
     this->function.func_meaning->TracePointers(func);
     func(&this->function.activation);
