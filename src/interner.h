@@ -79,6 +79,10 @@ public:
     g_the_interner->Intern("lambda");
     g_the_interner->Intern("if");
     g_the_interner->Intern("begin");
+	g_the_interner->Intern("unquote");
+	g_the_interner->Intern("unquote-splicing");
+	g_the_interner->Intern("quasiquote");
+	g_the_interner->Intern("append");
   }
 
   static size_t InternSymbol(std::string str) {
@@ -99,4 +103,8 @@ public:
   static const size_t Lambda = 3;
   static const size_t If = 4;
   static const size_t Begin = 5;
+  static const size_t Unquote = 6;
+  static const size_t UnquoteSplicing = 7;
+  static const size_t Quasiquote = 8;
+  static const size_t Append = 9;
 };

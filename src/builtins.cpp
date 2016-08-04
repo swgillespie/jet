@@ -170,6 +170,8 @@ Sexp *Builtin_Eval(Sexp *form) {
   analyzed = Analyze(form);
   g_the_environment->ExitScope();
 
+  std::cout << "analyzed: " << analyzed->DumpString() << std::endl;
+
   // this creates a new child activation. Not sure if that's
   // right, but it works.
   act = GcHeap::AllocateActivation(g_global_activation);
@@ -214,6 +216,24 @@ Sexp *Builtin_Error(Sexp *form) {
   throw JetRuntimeException(form->string_value);
 }
 
+// TODO(segilles) there's no reason this should be an intrinsic
+// over being implemented in jet itself
+Sexp *Builtin_Append(Sexp *form_one, Sexp *form_two) {
+	CONTRACT { FORBID_GC; }
+
+	Sexp *cursor = form_one;
+	while (cursor->IsCons() && !cursor->Cdr()->IsEmpty()) {
+		cursor = cursor->Cdr();
+	}
+
+	if (!cursor->IsCons()) {
+		throw JetRuntimeException("unexpected improper list in append");
+	}
+
+	cursor->cons.cdr = form_two;
+	return form_one;
+}
+
 void LoadBuiltins(Sexp *activation) {
   CONTRACT { PRECONDITION(activation->IsActivation()); }
 
@@ -232,4 +252,5 @@ void LoadBuiltins(Sexp *activation) {
   LoadSingleBuiltin(activation, "print", Builtin_Print);
   LoadSingleBuiltin(activation, "println", Builtin_Println);
   LoadSingleBuiltin(activation, "error", Builtin_Error);
+  LoadSingleBuiltin(activation, "append", Builtin_Append);
 }

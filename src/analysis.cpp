@@ -337,6 +337,82 @@ static Sexp *AnalyzeInvocation(Sexp *form) {
   return GcHeap::AllocateMeaning(meaning);
 }
 
+static Sexp *QuasiquoteSingle(Sexp* form) {
+	GC_HELPER_FRAME;
+	GC_PROTECT(form);
+
+	if (form->IsCons()) {
+		if (form->IsSymbol() && form->symbol_value == SymbolInterner::Unquote) {
+			return GcHeap::AllocateCons(form, GcHeap::AllocateEmpty());
+		}
+
+		if (form->IsSymbol() && form->symbol_value == SymbolInterner::UnquoteSplicing) {
+			return form;
+		}
+	}
+
+	return GcHeap::AllocateCons(
+		GcHeap::AllocateSymbol(SymbolInterner::Quote),
+		GcHeap::AllocateCons(form, GcHeap::AllocateEmpty()));
+}
+
+static Sexp* Quasiquote(Sexp* form) {
+	// a quasiquote form such as 
+	//   `(a ,b ,@c)
+	// reads like
+	//   (quote (a (unquote b) (unquote-splicing c))
+	// which we in turn transform into
+	//   (append (list 'a) (list b) c))
+	//
+	// we do this transform recursively:
+	//   (quasiquote (car . cdr))                  => (append (quasiquote-single car) (quasiquote cdr))
+	//   (quasiquote-single car)                   => (list (quoted car))
+	//   (quasiquote-single (unquote car)          => (list car)
+	//   (quasiquote-single (unquote-splicing car) => car
+	GC_HELPER_FRAME;
+	GC_PROTECT(form);
+
+	if (form->IsEmpty()) {
+		return form;
+	}
+
+	GC_PROTECTED_LOCAL(quasiquoted_car);
+	GC_PROTECTED_LOCAL(quasiquoted_cdr);
+	assert(form->IsCons());
+	quasiquoted_car = QuasiquoteSingle(form->Car());
+	quasiquoted_cdr = Quasiquote(form->Cdr());
+
+	return GcHeap::AllocateCons(
+		GcHeap::AllocateSymbol(SymbolInterner::Append),
+		GcHeap::AllocateCons(quasiquoted_car, quasiquoted_cdr));
+}
+
+
+static Sexp *AnalyzeQuasiquote(Sexp *form) {
+	GC_HELPER_FRAME;
+	GC_PROTECT(form);
+	GC_PROTECTED_LOCAL(arg);
+	GC_PROTECTED_LOCAL(transformed);
+
+	size_t len;
+	bool is_proper;
+	std::tie(is_proper, len) = form->Length();
+	if (!is_proper || len != 1) {
+		throw JetRuntimeException("invalid quasiquote form");
+	}
+
+	arg = form->Car();
+	if (!arg->IsCons()) {
+		// anything not a list is simply quoted, exactly like quote does.
+		QuotedMeaning *meaning = new QuotedMeaning(arg);
+		GC_PROTECT(meaning->Quoted());
+		return GcHeap::AllocateMeaning(meaning);
+	}
+
+	transformed = Quasiquote(arg);
+	return Analyze(transformed);
+}
+
 Sexp *Analyze(Sexp *form) {
   CONTRACT {
     PRECONDITION(form != nullptr);
@@ -364,6 +440,8 @@ Sexp *Analyze(Sexp *form) {
       return AnalyzeLambda(form->Cdr());
     case SymbolInterner::SetBang:
       return AnalyzeSet(form->Cdr());
+	case SymbolInterner::Quasiquote:
+		return AnalyzeQuasiquote(form->Cdr());
     default:
       return AnalyzeInvocation(form);
     }
