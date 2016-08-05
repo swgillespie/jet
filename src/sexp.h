@@ -7,9 +7,10 @@
 // copies of the Software, and to permit persons to whom the Software is
 // afurnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
+// The above copyright notice and this permission notice shall be included in
+// all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -28,6 +29,8 @@
 typedef bool jet_bool;
 typedef int jet_fixnum;
 typedef const char *jet_string;
+typedef wchar_t *jet_char;
+typedef FILE *jet_port;
 
 struct Sexp;
 struct Cons {
@@ -50,8 +53,8 @@ struct Function {
 template <typename Ret, typename... Args, size_t... Index>
 Ret NativeFunctionHelper(std::function<Ret(Args...)> wrapped, Sexp **args,
                          std::index_sequence<Index...>) {
-  // both GCC and MSVC are silly and doesn't think that args is being used here,
-  // despite it obviously being used by the parameter pack below.
+// both GCC and MSVC are silly and don't think that args is being used here,
+// despite it obviously being used by the parameter pack below.
 #if defined(__GNUG__) || defined(_MSC_VER)
   UNUSED_PARAMETER(args);
 #endif
@@ -95,6 +98,8 @@ struct Sexp {
     FUNCTION,
     NATIVE_FUNCTION,
     MEANING,
+    CHARACTER,
+    PORT
   };
 
   Kind kind;
@@ -109,6 +114,10 @@ struct Sexp {
     jet_fixnum fixnum_value;
     // Bool, a boolean value.
     jet_bool bool_value;
+    // Char, a char value.
+    jet_char char_value;
+    // Port, an input or output port.
+    jet_port port_value;
     // An activation.
     class Activation *activation;
     // A native function to be called.
@@ -144,6 +153,12 @@ struct Sexp {
 
   // Returns true if this sexp is a bool.
   inline bool IsBool() const { return kind == Sexp::Kind::BOOL; }
+
+  // Returns true if this sexp is a char.
+  inline bool IsChar() const { return kind == Sexp::Kind::CHARACTER; }
+
+  // Returns true if this sexp is a port.
+  inline bool IsPort() const { return kind == Sexp::Kind::PORT; }
 
   // Returns true if this sexp is a string.
   inline bool IsString() const { return kind == Sexp::Kind::STRING; }

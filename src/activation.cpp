@@ -7,9 +7,10 @@
 // copies of the Software, and to permit persons to whom the Software is
 // afurnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
+// The above copyright notice and this permission notice shall be included in
+// all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -51,7 +52,7 @@ void Activation::Set(size_t up_index, size_t right_index, Sexp *value) {
   if (right_index >= cursor->slots.size()) {
     // we're defining something and need to
     // expand our slots.
-    size_t diff = cursor->slots.size() - right_index;
+    size_t diff = right_index - cursor->slots.size();
     for (size_t i = 0; i <= diff; i++) {
       cursor->slots.emplace_back();
     }

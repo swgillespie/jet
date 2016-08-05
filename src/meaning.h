@@ -7,9 +7,10 @@
 // copies of the Software, and to permit persons to whom the Software is
 // afurnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
+// The above copyright notice and this permission notice shall be included in
+// all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -255,10 +256,12 @@ public:
 class LambdaMeaning : public Meaning {
 private:
   size_t arity;
+  bool is_variadic;
   Sexp *body;
 
 public:
-  LambdaMeaning(size_t arity, Sexp *body) : arity(arity), body(body) {}
+  LambdaMeaning(size_t arity, bool is_vadiaric, Sexp *body)
+      : arity(arity), is_variadic(is_vadiaric), body(body) {}
 
   Trampoline Eval(Sexp *act) override;
   void TracePointers(std::function<void(Sexp **)> func) override {
@@ -273,6 +276,7 @@ public:
   }
 
   size_t Arity() const { return arity; }
+  bool IsVariadic() const { return is_variadic; }
   Sexp *&Body() { return body; }
 };
 

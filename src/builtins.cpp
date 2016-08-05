@@ -7,9 +7,10 @@
 // copies of the Software, and to permit persons to whom the Software is
 // afurnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
+// The above copyright notice and this permission notice shall be included in
+// all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -203,6 +204,16 @@ Sexp *Builtin_Println(Sexp *form) {
   return GcHeap::AllocateEmpty();
 }
 
+Sexp *Builtin_Error(Sexp *form) {
+  CONTRACT { FORBID_GC; }
+
+  if (!form->IsString()) {
+    throw JetRuntimeException("error called with non-string value");
+  }
+
+  throw JetRuntimeException(form->string_value);
+}
+
 void LoadBuiltins(Sexp *activation) {
   CONTRACT { PRECONDITION(activation->IsActivation()); }
 
@@ -220,4 +231,5 @@ void LoadBuiltins(Sexp *activation) {
   LoadSingleBuiltin(activation, "eval", Builtin_Eval);
   LoadSingleBuiltin(activation, "print", Builtin_Print);
   LoadSingleBuiltin(activation, "println", Builtin_Println);
+  LoadSingleBuiltin(activation, "error", Builtin_Error);
 }

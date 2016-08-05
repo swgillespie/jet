@@ -7,9 +7,10 @@
 // copies of the Software, and to permit persons to whom the Software is
 // afurnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
+// The above copyright notice and this permission notice shall be included in
+// all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -227,34 +228,56 @@ static Sexp *AnalyzeLambda(Sexp *form) {
         "invalid lambda form: form not appropriate number of elements");
   }
 
+  bool is_variadic = false;
+  size_t required_params = 0;
   params = form->Car();
   if (!params->IsCons() && !params->IsEmpty()) {
-    throw JetRuntimeException("invalid lambda form: incorrect parameter form");
-  }
+    // the parameter list doesn't have to actually
+    // be a list, it can be a symbol.
+    if (!params->IsSymbol()) {
+      throw JetRuntimeException("invalid lambda form: parameter description "
+                                "must be a list or a symbol");
+    }
 
-  // TODO(feature) - variadic functions use improper lists
-  // in the lambda form
-  if (!params->IsProperList()) {
-    throw JetRuntimeException(
-        "invalid lambda form: parameter form not a proper list");
+    is_variadic = true;
+    required_params = 0;
+  } else if (params->IsEmpty()) {
+    is_variadic = false;
+    required_params = 0;
+  } else {
+    std::tie(is_proper, len) = form->Car()->Length();
+    is_variadic = !is_proper;
+    required_params = len;
   }
 
   g_the_environment->EnterScope();
-  params->ForEach([&](Sexp *argument) {
-    GC_HELPER_FRAME;
-    GC_PROTECT(argument);
 
-    if (!argument->IsSymbol()) {
+  GC_PROTECTED_LOCAL(cursor);
+  cursor = params;
+  while (cursor->IsCons() && !cursor->Cdr()->IsEmpty()) {
+    if (!cursor->Car()->IsSymbol()) {
       throw JetRuntimeException("invalid lambda form: parameter not a symbol");
     }
 
-    g_the_environment->Define(argument->symbol_value);
-  });
+    g_the_environment->Define(cursor->symbol_value);
+    cursor = cursor->Cdr();
+  }
+
+  if (!cursor->IsCons() && !cursor->IsEmpty()) {
+    // this means that the parameter list was improper, and the cdr
+    // of the cursor is the "rest" parameter.
+    if (!cursor->IsSymbol()) {
+      throw JetRuntimeException("invalid lambda form: parameter not a sybmol");
+    }
+
+    g_the_environment->Define(cursor->symbol_value);
+  }
 
   body = Analyze(form->Cadr());
   g_the_environment->ExitScope();
   std::tie(std::ignore, len) = params->Length();
-  LambdaMeaning *meaning = new LambdaMeaning(len, body);
+  LambdaMeaning *meaning =
+      new LambdaMeaning(required_params, is_variadic, body);
   GC_PROTECT(meaning->Body());
   return GcHeap::AllocateMeaning(meaning);
 }

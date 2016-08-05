@@ -7,9 +7,10 @@
 // copies of the Software, and to permit persons to whom the Software is
 // afurnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
+// The above copyright notice and this permission notice shall be included in
+// all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,10 +20,10 @@
 // SOFTWARE.
 #include "gc.h"
 #include "contract.h"
+#include <cstdarg>
 #include <list>
 #include <stack>
 #include <unordered_map>
-#include <cstdarg>
 
 #ifdef _WIN32
 #include "windows.h"
@@ -98,25 +99,25 @@ template <typename F> void ScanRoots(F func) {
 // On Unixes, we map the heap using mmap. On Windows, we'll use VirtualAlloc.
 uint8_t *MapTheHeap(size_t page_number) {
 #ifndef _WIN32
-  void *heap =
-      mmap(nullptr, PAGE_SIZE * page_number, PROT_READ | PROT_WRITE,
-            MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  void *heap = mmap(nullptr, PAGE_SIZE * page_number, PROT_READ | PROT_WRITE,
+                    MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   if (heap == (void *)-1) {
     std::string msg(strerror(errno));
     std::string result = "failed to allocate heap: " + msg;
     PANIC(result.c_str());
   }
 
-  return (uint8_t*)heap;
+  return (uint8_t *)heap;
 #else
-  void *heap = VirtualAlloc(nullptr, PAGE_SIZE * page_number, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  void *heap = VirtualAlloc(nullptr, PAGE_SIZE * page_number,
+                            MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
   if (heap == nullptr) {
     std::ostringstream stream;
-	stream << "failed to allocate heap: error " << GetLastError();
-	PANIC(stream.str().c_str());
+    stream << "failed to allocate heap: error " << GetLastError();
+    PANIC(stream.str().c_str());
   }
 
-  return (uint8_t*)heap;
+  return (uint8_t *)heap;
 #endif
 }
 
@@ -422,6 +423,9 @@ Sexp *GcHeap::Allocate(bool should_finalize) {
   return pimpl->Allocate(should_finalize);
 }
 
-void GcHeap::Collect() { return pimpl->Collect(); }
+void GcHeap::Collect() {
+  CONTRACT_VIOLATIONS { PERFORMS_GC; }
+  return pimpl->Collect();
+}
 
 void GcHeap::ToggleStress() { return pimpl->ToggleStress(); }

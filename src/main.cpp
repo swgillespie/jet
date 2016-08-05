@@ -7,9 +7,10 @@
 // copies of the Software, and to permit persons to whom the Software is
 // afurnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
+// The above copyright notice and this permission notice shall be included in
+// all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -60,10 +61,10 @@ int ActualMain(char *filename) {
 void InitializeRuntime() {
   GcHeap::Initialize();
   SymbolInterner::Initialize();
-  // GcHeap::ToggleStressMode();
   g_frames = new Frame("<global>", nullptr);
   g_current_frame = g_frames;
 #ifdef DEBUG
+  GcHeap::ToggleStressMode();
   g_contract_frames = new ContractFrame("<global>", nullptr);
   g_contract_current_frame = g_contract_frames;
 #endif
@@ -71,11 +72,11 @@ void InitializeRuntime() {
 }
 
 int main(int argc, char **argv) {
-  InitializeRuntime();
   if (argc != 2) {
     std::cout << "usage: jet <file.jet>" << std::endl;
     return 1;
   }
-
+    
+  InitializeRuntime();
   return ActualMain(argv[1]);
 }
