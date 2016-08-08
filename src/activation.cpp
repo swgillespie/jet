@@ -20,10 +20,11 @@
 // SOFTWARE.
 #include "activation.h"
 #include "contract.h"
+#include "gc.h"
 
 #include <iostream>
 
-Activation *g_global_activation;
+Sexp *g_global_activation;
 
 Sexp *Activation::Get(size_t up_index, size_t right_index) {
   CONTRACT { FORBID_GC; }
@@ -31,9 +32,11 @@ Sexp *Activation::Get(size_t up_index, size_t right_index) {
   Activation *cursor = this;
   for (size_t i = 0; i < up_index; i++) {
     assert(cursor != nullptr);
-    cursor = cursor->parent;
+    assert(cursor->parent->IsActivation());
+    cursor = cursor->parent->activation;
   }
 
+  assert(cursor != nullptr);
   assert(right_index < cursor->slots.size());
   Sexp *result = cursor->slots[right_index];
   assert(result != nullptr);
@@ -43,18 +46,24 @@ Sexp *Activation::Get(size_t up_index, size_t right_index) {
 void Activation::Set(size_t up_index, size_t right_index, Sexp *value) {
   CONTRACT { FORBID_GC; }
 
+  // we should never (barring call/cc, not implemented) be putting
+  // activations in another activation.
+  assert(!value->IsActivation());
+
   Activation *cursor = this;
   for (size_t i = 0; i < up_index; i++) {
     assert(cursor != nullptr);
-    cursor = cursor->parent;
+    assert(cursor->parent->IsActivation());
+    cursor = cursor->parent->activation;
   }
 
+  assert(cursor != nullptr);
   if (right_index >= cursor->slots.size()) {
     // we're defining something and need to
     // expand our slots.
     size_t diff = right_index - cursor->slots.size();
     for (size_t i = 0; i <= diff; i++) {
-      cursor->slots.emplace_back();
+      cursor->slots.push_back(GcHeap::AllocateEmpty());
     }
   }
 
@@ -63,11 +72,12 @@ void Activation::Set(size_t up_index, size_t right_index, Sexp *value) {
 }
 
 void Activation::TracePointers(std::function<void(Sexp **)> func) {
-  for (auto it = slots.begin(); it != slots.end(); it++) {
-    func(&(*it));
+  Sexp **data = slots.data();
+  for (size_t i = 0; i < slots.size(); i++) {
+    func(&data[i]);
   }
 
   if (parent != nullptr) {
-    parent->TracePointers(func);
+    func(&parent);
   }
 }

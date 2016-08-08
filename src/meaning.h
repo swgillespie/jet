@@ -260,8 +260,8 @@ private:
   Sexp *body;
 
 public:
-  LambdaMeaning(size_t arity, bool is_vadiaric, Sexp *body)
-      : arity(arity), is_variadic(is_vadiaric), body(body) {}
+  LambdaMeaning(size_t arity, bool is_variadic, Sexp *body)
+      : arity(arity), is_variadic(is_variadic), body(body) {}
 
   Trampoline Eval(Sexp *act) override;
   void TracePointers(std::function<void(Sexp **)> func) override {

@@ -35,7 +35,7 @@ class Environment {
 private:
   // The slot map maps symbols to the slot that they have been
   // assigned in this environment.
-  std::vector<std::unordered_map<size_t, size_t>> slot_map;
+  std::vector<std::unordered_map<size_t, std::tuple<bool, size_t>>> slot_map;
 
 public:
   Environment() { slot_map.emplace_back(); }
@@ -48,6 +48,13 @@ public:
   // Attempts to look up a symbol in this environment. If
   // the symbol is not found, throws a JetRuntimeException.
   std::tuple<size_t, size_t> Get(size_t symbol);
+
+  // Returns whether or not the given symbol refers to a macro
+  // in the current environment.
+  bool IsMacro(size_t symbol);
+
+  // Indicate that this symbol refers to a macro.
+  void SetMacro(size_t symbol);
 
   // Defines a symbol in the current environment.
   void Define(size_t symbol);

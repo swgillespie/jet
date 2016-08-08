@@ -6,8 +6,12 @@ mkdir debug
 mkdir release
 cd debug
 cmake ../..
-make
+make -j4
 cd ../release
 cmake ../.. -DCMAKE_BUILD_TYPE=Release
-make
+make -j4
 cd ../..
+
+export JET_TEST_EXE=$(pwd)/ci/debug/src/jet
+cd test
+ruby run_tests.rb -v

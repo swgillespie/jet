@@ -1,0 +1,8 @@
+(define thing 5)
+
+;OUTPUT: 5
+(println thing)
+
+;OUTPUT: 24
+(set! thing 24)
+(println thing)

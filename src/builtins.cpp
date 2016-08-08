@@ -170,7 +170,7 @@ Sexp *Builtin_Eval(Sexp *form) {
   analyzed = Analyze(form);
   g_the_environment->ExitScope();
 
-  std::cout << "analyzed: " << analyzed->DumpString() << std::endl;
+  //std::cout << "analyzed: " << analyzed->DumpString() << std::endl;
 
   // this creates a new child activation. Not sure if that's
   // right, but it works.
@@ -216,22 +216,18 @@ Sexp *Builtin_Error(Sexp *form) {
   throw JetRuntimeException(form->string_value);
 }
 
-// TODO(segilles) there's no reason this should be an intrinsic
-// over being implemented in jet itself
-Sexp *Builtin_Append(Sexp *form_one, Sexp *form_two) {
-	CONTRACT { FORBID_GC; }
+Sexp *Builtin_EofObject_P(Sexp *form) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
 
-	Sexp *cursor = form_one;
-	while (cursor->IsCons() && !cursor->Cdr()->IsEmpty()) {
-		cursor = cursor->Cdr();
-	}
+  return GcHeap::AllocateBool(form->IsEof());
+}
 
-	if (!cursor->IsCons()) {
-		throw JetRuntimeException("unexpected improper list in append");
-	}
+Sexp *Builtin_Not(Sexp *form) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
 
-	cursor->cons.cdr = form_two;
-	return form_one;
+  return GcHeap::AllocateBool(!form->IsTruthy());
 }
 
 void LoadBuiltins(Sexp *activation) {
@@ -252,5 +248,6 @@ void LoadBuiltins(Sexp *activation) {
   LoadSingleBuiltin(activation, "print", Builtin_Print);
   LoadSingleBuiltin(activation, "println", Builtin_Println);
   LoadSingleBuiltin(activation, "error", Builtin_Error);
-  LoadSingleBuiltin(activation, "append", Builtin_Append);
+  LoadSingleBuiltin(activation, "eof-object?", Builtin_EofObject_P);
+  LoadSingleBuiltin(activation, "not", Builtin_Not);
 }

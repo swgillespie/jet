@@ -210,35 +210,35 @@ static Sexp *ReadQuote(std::istream &input) {
 }
 
 static Sexp *ReadQuasiquote(std::istream &input) {
-	GC_HELPER_FRAME;
-	GC_PROTECTED_LOCAL(quoted);
+  GC_HELPER_FRAME;
+  GC_PROTECTED_LOCAL(quoted);
 
-	assert(Peek(input) == '`');
-	Expect(input, '`');
-	quoted = ReadToplevel(input);
-	return GcHeap::AllocateCons(
-		GcHeap::AllocateSymbol(SymbolInterner::Quasiquote),
-		GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
+  assert(Peek(input) == '`');
+  Expect(input, '`');
+  quoted = ReadToplevel(input);
+  return GcHeap::AllocateCons(
+      GcHeap::AllocateSymbol(SymbolInterner::Quasiquote),
+      GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
 }
 
 static Sexp *ReadUnquote(std::istream &input) {
-	GC_HELPER_FRAME;
-	GC_PROTECTED_LOCAL(quoted);
+  GC_HELPER_FRAME;
+  GC_PROTECTED_LOCAL(quoted);
 
-	assert(Peek(input) == ',');
-	Expect(input, ',');
-	if (Peek(input) == '@') {
-		Expect(input, '@');
-		quoted = ReadToplevel(input);
-		return GcHeap::AllocateCons(
-			GcHeap::AllocateSymbol(SymbolInterner::UnquoteSplicing),
-			GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
-	}
+  assert(Peek(input) == ',');
+  Expect(input, ',');
+  if (Peek(input) == '@') {
+    Expect(input, '@');
+    quoted = ReadToplevel(input);
+    return GcHeap::AllocateCons(
+        GcHeap::AllocateSymbol(SymbolInterner::UnquoteSplicing),
+        GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
+  }
 
-	quoted = ReadToplevel(input);
-	return GcHeap::AllocateCons(
-		GcHeap::AllocateSymbol(SymbolInterner::Unquote),
-		GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
+  quoted = ReadToplevel(input);
+  return GcHeap::AllocateCons(
+      GcHeap::AllocateSymbol(SymbolInterner::Unquote),
+      GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
 }
 
 static Sexp *ReadAtom(std::istream &input) {
@@ -272,11 +272,11 @@ static Sexp *ReadAtom(std::istream &input) {
   }
 
   if (peeked == ',') {
-	  return ReadUnquote(input);
+    return ReadUnquote(input);
   }
 
   if (peeked == '`') {
-	  return ReadQuasiquote(input);
+    return ReadQuasiquote(input);
   }
 
   if (peeked == '"') {

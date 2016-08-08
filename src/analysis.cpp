@@ -37,7 +37,7 @@ std::tuple<size_t, size_t> Environment::Get(size_t symbol) {
     auto entry = it->find(symbol);
     if (entry != it->end()) {
       // we found it. the second entry of this map is the right_index
-      return std::make_tuple(up_index, entry->second);
+      return std::make_tuple(up_index, std::get<1>(entry->second));
     }
 
     up_index++;
@@ -48,16 +48,40 @@ std::tuple<size_t, size_t> Environment::Get(size_t symbol) {
 }
 
 void Environment::Define(size_t symbol) {
-  std::unordered_map<size_t, size_t> &env = slot_map.back();
+  std::unordered_map<size_t, std::tuple<bool, size_t>> &env = slot_map.back();
   size_t idx = env.size();
-  env[symbol] = idx;
+  env[symbol] = std::make_tuple(false, idx);
 }
 
 std::tuple<size_t, size_t> Environment::DefineGlobal(size_t symbol) {
-  std::unordered_map<size_t, size_t> &env = slot_map.front();
+  std::unordered_map<size_t, std::tuple<bool, size_t>> &env = slot_map.front();
   size_t idx = env.size();
-  env[symbol] = idx;
+  env[symbol] = std::make_tuple(false, idx);
   return std::make_tuple(slot_map.size() - 1, idx);
+}
+
+bool Environment::IsMacro(size_t symbol) {
+  for (auto it = slot_map.rbegin(); it != slot_map.rend(); it++) {
+    auto entry = it->find(symbol);
+    if (entry != it->end()) {
+      return std::get<0>(entry->second);
+    }
+  }
+
+  // this can happen if we're referencing a unbound identifier.
+  // we'll emit an error later. just return false.
+  return false;
+}
+
+void Environment::SetMacro(size_t symbol) {
+  for (auto it = slot_map.rbegin(); it != slot_map.rend(); it++) {
+    auto entry = it->find(symbol);
+    if (entry != it->end()) {
+      std::get<0>(entry->second) = true;
+    }
+  }
+
+  UNREACHABLE();
 }
 
 void Environment::EnterScope() { slot_map.emplace_back(); }
@@ -69,7 +93,7 @@ void Environment::Dump() {
   for (auto it = slot_map.rbegin(); it != slot_map.rend(); it++) {
     std::cout << "frame: " << index << std::endl;
     for (auto it2 = it->begin(); it2 != it->end(); it2++) {
-      std::cout << "  offset: " << it2->second;
+      std::cout << "  offset: " << std::get<1>(it2->second);
       std::cout << ", symbol: " << SymbolInterner::GetSymbol(it2->first);
     }
   }
@@ -162,7 +186,7 @@ static Sexp *AnalyzeBegin(Sexp *form) {
   return GcHeap::AllocateMeaning(meaning);
 }
 
-static Sexp *AnalyzeDefine(Sexp *form) {
+static Sexp *AnalyzeDefine(Sexp *form, bool is_macro) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(binding);
@@ -182,6 +206,9 @@ static Sexp *AnalyzeDefine(Sexp *form) {
   size_t up_index;
   size_t right_index;
   std::tie(up_index, right_index) = g_the_environment->DefineGlobal(sym_name);
+  if (is_macro) {
+    g_the_environment->SetMacro(sym_name);
+  }
   binding = Analyze(form->Cadr());
   DefinitionMeaning *meaning =
       new DefinitionMeaning(up_index, right_index, binding);
@@ -199,13 +226,23 @@ static Sexp *AnalyzeIf(Sexp *form) {
   bool is_proper;
   size_t len;
   std::tie(is_proper, len) = form->Length();
-  if (!is_proper || len != 3) {
+  if (!is_proper || len < 2 || len > 3) {
     throw JetRuntimeException("invalid if form");
   }
 
   cond = Analyze(form->Car());
   true_branch = Analyze(form->Cadr());
-  false_branch = Analyze(form->Caddr());
+
+  if (len == 3) {
+    false_branch = Analyze(form->Caddr());
+  } else if (len == 2) {
+    // this is questionable and goes against
+    // the guidance earlier in the file about protecting
+    // meanings, but this is safe because we are quoting
+    // the empty list, which doesn't get relocated.
+    false_branch = GcHeap::AllocateMeaning(new QuotedMeaning(GcHeap::AllocateEmpty()));
+  }
+
   ConditionalMeaning *meaning =
       new ConditionalMeaning(cond, true_branch, false_branch);
   GC_PROTECT(meaning->Condition());
@@ -218,17 +255,17 @@ static Sexp *AnalyzeLambda(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
   GC_PROTECTED_LOCAL(params);
-  GC_PROTECTED_LOCAL(body);
+  GC_PROTECTED_LOCAL_VECTOR(body);
 
   bool is_proper;
   size_t len;
   std::tie(is_proper, len) = form->Length();
-  if (!is_proper || len != 2) {
+  if (!is_proper || len < 2) {
     throw JetRuntimeException(
         "invalid lambda form: form not appropriate number of elements");
   }
 
-  bool is_variadic = false;
+  bool is_variadic;
   size_t required_params = 0;
   params = form->Car();
   if (!params->IsCons() && !params->IsEmpty()) {
@@ -259,11 +296,13 @@ static Sexp *AnalyzeLambda(Sexp *form) {
       throw JetRuntimeException("invalid lambda form: parameter not a symbol");
     }
 
-    g_the_environment->Define(cursor->symbol_value);
+    g_the_environment->Define(cursor->Car()->symbol_value);
     cursor = cursor->Cdr();
   }
 
-  if (!cursor->IsCons() && !cursor->IsEmpty()) {
+  if (cursor->IsCons()) {
+    g_the_environment->Define(cursor->Car()->symbol_value);
+  } else if (!cursor->IsCons() && !cursor->IsEmpty()) {
     // this means that the parameter list was improper, and the cdr
     // of the cursor is the "rest" parameter.
     if (!cursor->IsSymbol()) {
@@ -273,11 +312,26 @@ static Sexp *AnalyzeLambda(Sexp *form) {
     g_the_environment->Define(cursor->symbol_value);
   }
 
-  body = Analyze(form->Cadr());
+  form->Cdr()->ForEach([&](Sexp *body_form) {
+    GC_HELPER_FRAME;
+    GC_PROTECT(body_form);
+
+    body.push_back(Analyze(body_form));
+  });
+
   g_the_environment->ExitScope();
-  std::tie(std::ignore, len) = params->Length();
+
+  GC_PROTECTED_LOCAL(last);
+  last = body.back();
+  body.pop_back();
+  SequenceMeaning *seq = new SequenceMeaning(body, last);
+  GC_PROTECT_VECTOR(seq->Body());
+  GC_PROTECT(seq->FinalForm());
+
+  GC_PROTECTED_LOCAL(seq_meaning);
+  seq_meaning = GcHeap::AllocateMeaning(seq);
   LambdaMeaning *meaning =
-      new LambdaMeaning(required_params, is_variadic, body);
+      new LambdaMeaning(required_params, is_variadic, seq_meaning);
   GC_PROTECT(meaning->Body());
   return GcHeap::AllocateMeaning(meaning);
 }
@@ -302,7 +356,7 @@ static Sexp *AnalyzeSet(Sexp *form) {
   size_t right_index;
   size_t sym_name = form->Car()->symbol_value;
   std::tie(up_index, right_index) = g_the_environment->Get(sym_name);
-  binding = Analyze(form->Cdr());
+  binding = Analyze(form->Cadr());
   SetMeaning *meaning = new SetMeaning(up_index, right_index, binding);
   GC_PROTECT(meaning->BindingValue());
   return GcHeap::AllocateMeaning(meaning);
@@ -318,6 +372,16 @@ static Sexp *AnalyzeInvocation(Sexp *form) {
   std::tie(is_proper, std::ignore) = form->Length();
   if (!is_proper) {
     throw JetRuntimeException("invalid invocation");
+  }
+
+  if (form->Car()->IsSymbol()) {
+    if (g_the_environment->IsMacro(form->Car()->symbol_value)) {
+      // this is a macro that needs to be expanded and evaluated
+      // right now, before we analyze the arguments.
+      GC_PROTECTED_LOCAL(macro_expansion);
+      NYI();
+      return Analyze(macro_expansion);
+    }
   }
 
   base = Analyze(form->Car());
@@ -337,80 +401,139 @@ static Sexp *AnalyzeInvocation(Sexp *form) {
   return GcHeap::AllocateMeaning(meaning);
 }
 
-static Sexp *QuasiquoteSingle(Sexp* form) {
-	GC_HELPER_FRAME;
-	GC_PROTECT(form);
-
-	if (form->IsCons()) {
-		if (form->IsSymbol() && form->symbol_value == SymbolInterner::Unquote) {
-			return GcHeap::AllocateCons(form, GcHeap::AllocateEmpty());
-		}
-
-		if (form->IsSymbol() && form->symbol_value == SymbolInterner::UnquoteSplicing) {
-			return form;
-		}
-	}
-
-	return GcHeap::AllocateCons(
-		GcHeap::AllocateSymbol(SymbolInterner::Quote),
-		GcHeap::AllocateCons(form, GcHeap::AllocateEmpty()));
+static Sexp *Quasiquote(Sexp *form) {
+  // a quasiquote form such as
+  //   `(a ,b ,@c)
+  // reads like
+  //   (quote (a (unquote b) (unquote-splicing c))
+  // which we in turn transform into
+  //   (cons (list 'a) (cons (list b) c))
+  //
+  // we do this transform recursively:
+  //   (quasiquote (car . cdr))                  => (cons (quasiquote-single
+  //   car) (quasiquote cdr))
+  //   (quasiquote-single car)                   => (list (quoted car))
+  //   (quasiquote-single (unquote car)          => (list car)
+  //   (quasiquote-single (unquote-splicing car) => car
+  UNUSED_PARAMETER(form);
+  NYI();
 }
-
-static Sexp* Quasiquote(Sexp* form) {
-	// a quasiquote form such as 
-	//   `(a ,b ,@c)
-	// reads like
-	//   (quote (a (unquote b) (unquote-splicing c))
-	// which we in turn transform into
-	//   (append (list 'a) (list b) c))
-	//
-	// we do this transform recursively:
-	//   (quasiquote (car . cdr))                  => (append (quasiquote-single car) (quasiquote cdr))
-	//   (quasiquote-single car)                   => (list (quoted car))
-	//   (quasiquote-single (unquote car)          => (list car)
-	//   (quasiquote-single (unquote-splicing car) => car
-	GC_HELPER_FRAME;
-	GC_PROTECT(form);
-
-	if (form->IsEmpty()) {
-		return form;
-	}
-
-	GC_PROTECTED_LOCAL(quasiquoted_car);
-	GC_PROTECTED_LOCAL(quasiquoted_cdr);
-	assert(form->IsCons());
-	quasiquoted_car = QuasiquoteSingle(form->Car());
-	quasiquoted_cdr = Quasiquote(form->Cdr());
-
-	return GcHeap::AllocateCons(
-		GcHeap::AllocateSymbol(SymbolInterner::Append),
-		GcHeap::AllocateCons(quasiquoted_car, quasiquoted_cdr));
-}
-
 
 static Sexp *AnalyzeQuasiquote(Sexp *form) {
-	GC_HELPER_FRAME;
-	GC_PROTECT(form);
-	GC_PROTECTED_LOCAL(arg);
-	GC_PROTECTED_LOCAL(transformed);
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
+  GC_PROTECTED_LOCAL(arg);
+  GC_PROTECTED_LOCAL(transformed);
 
-	size_t len;
-	bool is_proper;
-	std::tie(is_proper, len) = form->Length();
-	if (!is_proper || len != 1) {
-		throw JetRuntimeException("invalid quasiquote form");
-	}
+  size_t len;
+  bool is_proper;
+  std::tie(is_proper, len) = form->Length();
+  if (!is_proper || len != 1) {
+    throw JetRuntimeException("invalid quasiquote form");
+  }
 
-	arg = form->Car();
-	if (!arg->IsCons()) {
-		// anything not a list is simply quoted, exactly like quote does.
-		QuotedMeaning *meaning = new QuotedMeaning(arg);
-		GC_PROTECT(meaning->Quoted());
-		return GcHeap::AllocateMeaning(meaning);
-	}
+  arg = form->Car();
+  if (!arg->IsCons()) {
+    // anything not a list is simply quoted, exactly like quote does.
+    QuotedMeaning *meaning = new QuotedMeaning(arg);
+    GC_PROTECT(meaning->Quoted());
+    return GcHeap::AllocateMeaning(meaning);
+  }
 
-	transformed = Quasiquote(arg);
-	return Analyze(transformed);
+  transformed = Quasiquote(arg);
+  return Analyze(transformed);
+}
+
+// The `let` form is not a fundamental form
+// in Jet and hopefully will be replaced by a macro
+// in the future.
+//
+// As such, the `let` form doesn't translate into a LetMeaning,
+// since those don't exist - instead we rewrite the let as
+// a lambda, like the macro will do.
+static Sexp *AnalyzeLet(Sexp *form) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
+  GC_PROTECTED_LOCAL(bindings);
+  GC_PROTECTED_LOCAL_VECTOR(variables);
+  GC_PROTECTED_LOCAL_VECTOR(binding_values);
+  GC_PROTECTED_LOCAL_VECTOR(body_values);
+  // (let ((var binding) ...) body ...)
+
+  size_t len;
+  bool is_proper;
+  std::tie(is_proper, len) = form->Length();
+  if (!is_proper) {
+    throw JetRuntimeException("invalid let form");
+  }
+
+  if (!form->Car()->IsCons()) {
+    throw JetRuntimeException("invalid let form: bad binding list");
+  }
+
+  bindings = form->Car();
+  if (!bindings->IsProperList()) {
+    throw JetRuntimeException("invalid let form: bad binding list");
+  }
+
+  g_the_environment->EnterScope();
+  bindings->ForEach([&](Sexp *binding){
+    GC_HELPER_FRAME;
+    GC_PROTECT(binding);
+
+    if (!binding->IsCons() || !binding->IsProperList()) {
+      throw JetRuntimeException("invalid let form: bad binding list");
+    }
+
+    size_t binding_len;
+    std::tie(std::ignore, binding_len) = binding->Length();
+    if (binding_len != 2) {
+      throw JetRuntimeException("invalid let form: bad binding list");
+    }
+
+    if (!binding->Car()->IsSymbol()) {
+      throw JetRuntimeException("invalid let form: bad variable name");
+    }
+
+    variables.push_back(binding->Car());
+    g_the_environment->Define(binding->Car()->symbol_value);
+  });
+
+  assert(form->Cdr()->IsCons());
+  form->Cdr()->ForEach([&](Sexp *body) {
+    GC_HELPER_FRAME;
+    GC_PROTECT(body);
+
+    body_values.push_back(Analyze(body));
+  });
+
+  g_the_environment->ExitScope();
+
+  // once we've exited the scope, we visit binding values.
+  bindings->ForEach([&](Sexp *binding) {
+    GC_HELPER_FRAME;
+    GC_PROTECT(binding);
+
+    binding_values.push_back(Analyze(binding->Cadr()));
+  });
+
+  GC_PROTECTED_LOCAL(last);
+  last = body_values.back();
+  body_values.pop_back();
+
+  SequenceMeaning *body_meaning_value = new SequenceMeaning(std::move(body_values), last);
+  GC_PROTECT_VECTOR(body_meaning_value->Body());
+  GC_PROTECT(body_meaning_value->FinalForm());
+  GC_PROTECTED_LOCAL(body_meaning);
+  body_meaning = GcHeap::AllocateMeaning(body_meaning_value);
+  LambdaMeaning *base_value = new LambdaMeaning(variables.size(), false, body_meaning);
+  GC_PROTECT(base_value->Body());
+  GC_PROTECTED_LOCAL(lambda_meaning);
+  lambda_meaning = GcHeap::AllocateMeaning(base_value);
+  InvocationMeaning *call_meaning = new InvocationMeaning(lambda_meaning, std::move(binding_values));
+  GC_PROTECT(call_meaning->Base());
+  GC_PROTECT_VECTOR(call_meaning->Arguments());
+  return GcHeap::AllocateMeaning(call_meaning);
 }
 
 Sexp *Analyze(Sexp *form) {
@@ -433,15 +556,19 @@ Sexp *Analyze(Sexp *form) {
     case SymbolInterner::Begin:
       return AnalyzeBegin(form->Cdr());
     case SymbolInterner::Define:
-      return AnalyzeDefine(form->Cdr());
+      return AnalyzeDefine(form->Cdr(), false);
+    case SymbolInterner::DefMacro:
+      return AnalyzeDefine(form->Cdr(), true);
     case SymbolInterner::If:
       return AnalyzeIf(form->Cdr());
     case SymbolInterner::Lambda:
       return AnalyzeLambda(form->Cdr());
     case SymbolInterner::SetBang:
       return AnalyzeSet(form->Cdr());
-	case SymbolInterner::Quasiquote:
-		return AnalyzeQuasiquote(form->Cdr());
+    case SymbolInterner::Quasiquote:
+      return AnalyzeQuasiquote(form->Cdr());
+    case SymbolInterner::Let:
+      return AnalyzeLet(form->Cdr());
     default:
       return AnalyzeInvocation(form);
     }

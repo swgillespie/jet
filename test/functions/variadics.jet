@@ -1,0 +1,11 @@
+(define my-list
+    (lambda l l))
+
+;OUTPUT: (1 2 3)
+(println (my-list 1 2 3))
+
+(define my-tail
+    (lambda (first . rest) rest))
+
+;OUTPUT: (2 3)
+(println (my-tail 1 2 3))

@@ -35,7 +35,8 @@ int ActualMain(char *filename) {
   GC_PROTECTED_LOCAL(meaning);
 
   activation = GcHeap::AllocateActivation(nullptr);
-  g_global_activation = activation->activation;
+  g_global_activation = activation;
+  GC_PROTECT(g_global_activation);
   LoadBuiltins(activation);
 
   std::ifstream input(filename);
@@ -47,6 +48,7 @@ int ActualMain(char *filename) {
       }
 
       meaning = Analyze(read);
+      //std::cout << "analyzed: " << meaning->DumpString() << std::endl;
       Evaluate(meaning, activation);
     } catch (JetRuntimeException &exn) {
       std::cerr << "runtime error: " << exn.what() << std::endl;
@@ -76,7 +78,7 @@ int main(int argc, char **argv) {
     std::cout << "usage: jet <file.jet>" << std::endl;
     return 1;
   }
-    
+
   InitializeRuntime();
   return ActualMain(argv[1]);
 }

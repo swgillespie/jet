@@ -1,8 +1,12 @@
 (define repl
   (lambda ()
-    (begin
-      (print ">> ")
-      (println (eval (read)))
-      (repl))))
+    (print ">> ")
+    (let ((read-form (read)))
+      (if (not (eof-object? read-form))
+        (begin
+          (print "==> ")
+          (println (eval read-form))
+          (repl))
+        (println "bye!")))))
 
 (repl)
