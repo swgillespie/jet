@@ -1,0 +1,2 @@
+;OUTPUT: runtime error: divided by zero
+(/ 5 0)

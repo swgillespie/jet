@@ -27,7 +27,7 @@
 #include <utility>
 
 typedef bool jet_bool;
-typedef int jet_fixnum;
+typedef double jet_fixnum;
 typedef const char *jet_string;
 typedef wchar_t *jet_char;
 typedef FILE *jet_port;
@@ -99,7 +99,8 @@ struct Sexp {
     NATIVE_FUNCTION,
     MEANING,
     CHARACTER,
-    PORT
+    PORT,
+    MACRO
   };
 
   Kind kind;
@@ -133,7 +134,7 @@ struct Sexp {
   // divides a page. Also serves as a useful checksum.
   uint64_t padding;
 
-#ifdef _WIN32
+#ifdef _MSC_VER
   // MSVC lays out this class differently enough to alter its
   // alignment. We still need to align to a page, so we need more padding.
   uint64_t padding_2;
@@ -179,6 +180,9 @@ struct Sexp {
 
   // Returns true if this sexp is a meaning.
   inline bool IsMeaning() const { return kind == Sexp::Kind::MEANING; }
+
+  // Returns true if this sexp is a macro.
+  inline bool IsMacro() const { return kind == Sexp::Kind::MACRO; }
 
   // Returns true if this sexp evaluates to itself when evaluated.
   // This includes most primitives.

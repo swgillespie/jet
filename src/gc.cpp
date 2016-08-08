@@ -155,7 +155,7 @@ private:
 public:
   GcHeapImpl() {
     uint8_t *heap = MapTheHeap(number_of_pages);
-    heap_start = (uint8_t *)heap;
+    heap_start = heap;
     heap_end = heap_start + PAGE_SIZE * number_of_pages;
     tospace = heap_start;
     extent = (heap_end - heap_start) / 2;
@@ -389,7 +389,6 @@ public:
 
     while (!stack.empty()) {
       Sexp *ptr = stack.back();
-      DebugLog("processing: %p", ptr);
       stack.pop_back();
       if (visited.count(ptr) != 0) {
         continue;
@@ -401,6 +400,8 @@ public:
       assert(ptr->padding != 0xabababababababab &&
              "observed a pointer that has been relocated!");
       ptr->TracePointers([&](Sexp **child) {
+        assert(child != nullptr && "passed a null pointer to TracePointers!");
+        assert(*child != nullptr && "observed a null pointer!");
         if ((*child)->IsEmpty()) {
           return;
         }

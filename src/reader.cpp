@@ -204,9 +204,40 @@ static Sexp *ReadQuote(std::istream &input) {
   assert(Peek(input) == '\'');
   Expect(input, '\'');
   quoted = ReadToplevel(input);
-  size_t quote_sym = SymbolInterner::InternSymbol("quote");
   return GcHeap::AllocateCons(
-      GcHeap::AllocateSymbol(quote_sym),
+      GcHeap::AllocateSymbol(SymbolInterner::Quote),
+      GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
+}
+
+static Sexp *ReadQuasiquote(std::istream &input) {
+  GC_HELPER_FRAME;
+  GC_PROTECTED_LOCAL(quoted);
+
+  assert(Peek(input) == '`');
+  Expect(input, '`');
+  quoted = ReadToplevel(input);
+  return GcHeap::AllocateCons(
+      GcHeap::AllocateSymbol(SymbolInterner::Quasiquote),
+      GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
+}
+
+static Sexp *ReadUnquote(std::istream &input) {
+  GC_HELPER_FRAME;
+  GC_PROTECTED_LOCAL(quoted);
+
+  assert(Peek(input) == ',');
+  Expect(input, ',');
+  if (Peek(input) == '@') {
+    Expect(input, '@');
+    quoted = ReadToplevel(input);
+    return GcHeap::AllocateCons(
+        GcHeap::AllocateSymbol(SymbolInterner::UnquoteSplicing),
+        GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
+  }
+
+  quoted = ReadToplevel(input);
+  return GcHeap::AllocateCons(
+      GcHeap::AllocateSymbol(SymbolInterner::Unquote),
       GcHeap::AllocateCons(quoted, GcHeap::AllocateEmpty()));
 }
 
@@ -238,6 +269,14 @@ static Sexp *ReadAtom(std::istream &input) {
 
   if (peeked == '\'') {
     return ReadQuote(input);
+  }
+
+  if (peeked == ',') {
+    return ReadUnquote(input);
+  }
+
+  if (peeked == '`') {
+    return ReadQuasiquote(input);
   }
 
   if (peeked == '"') {

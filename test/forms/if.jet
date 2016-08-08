@@ -1,0 +1,11 @@
+;OUTPUT: 42
+(println (if #f 1 42))
+
+;OUTPUT: 1
+(println (if #t 1 42))
+
+;OUTPUT: 9
+(println (if #t 9))
+
+;OUTPUT: ()
+(println (if #f 9))

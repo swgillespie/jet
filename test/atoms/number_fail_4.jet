@@ -1,0 +1,2 @@
+;OUTPUT: runtime error: type error
+(/ 1 "hello")
