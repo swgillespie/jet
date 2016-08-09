@@ -1,6 +1,7 @@
 require 'test/unit'
 
-TEST_COMMAND = ENV["JET_TEST_EXE"] || "jet"
+TEST_COMMAND_EXE = ENV["JET_TEST_EXE"] || "jet"
+TEST_COMMAND = TEST_COMMAND_EXE + " -s " + ENV["JET_TEST_STDLIB"]
 
 SchemeTest = Struct.new(:name, :filename, :output)
 

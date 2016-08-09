@@ -3,10 +3,10 @@
     (print ">> ")
     (let ((read-form (read)))
       (if (not (eof-object? read-form))
-        (begin
-          (print "==> ")
-          (println (eval read-form))
-          (repl))
+        (let ((result (eval read-form)))
+           (print "==> ")
+           (println result)
+           (repl))
         (println "bye!")))))
 
 (repl)

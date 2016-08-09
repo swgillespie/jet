@@ -13,5 +13,6 @@ make -j4
 cd ../..
 
 export JET_TEST_EXE=$(pwd)/ci/debug/src/jet
+export JET_TEST_STDLIB=$(pwd)/src/jet/
 cd test
 ruby run_tests.rb -v

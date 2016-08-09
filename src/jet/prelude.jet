@@ -1,0 +1,27 @@
+;; prelude.jet - The Jet prelude module loaded by the interpreter
+;; at the start of evaluation.
+
+;; List - makes a list out of its parameters.
+(define list
+  (lambda l l))
+
+;; Append - Concatenates two lists.
+(define append
+  (lambda (l m)
+    (if (empty? l) m
+      (cons (car l) (append (cdr l) m)))))
+
+(define reverse-aux
+  (lambda (l a)
+    (if (empty? l) a
+      (reverse-aux (cdr l) (cons (car l) a)))))
+
+;; Reverse - reverses a list.
+(define reverse
+  (lambda (l) (reverse-aux l '())))
+
+(define map
+  (lambda (f l)
+    (if (empty? l)
+      '()
+      (cons (f (car l)) (map f (cdr l))))))

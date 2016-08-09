@@ -25,21 +25,23 @@
 #include "interner.h"
 #include "reader.h"
 #include "sexp.h"
+#include "options.h"
 #include <fstream>
-#include <iostream>
+#include "options.h"
 
-int ActualMain(char *filename) {
+const char path_sep =
+#ifdef _WIN32
+    '\\';
+#else
+    '/';
+#endif
+
+int EvalFile(std::ifstream& input, Sexp *activation) {
   GC_HELPER_FRAME;
   GC_PROTECTED_LOCAL(read);
-  GC_PROTECTED_LOCAL(activation);
   GC_PROTECTED_LOCAL(meaning);
+  GC_PROTECT(activation);
 
-  activation = GcHeap::AllocateActivation(nullptr);
-  g_global_activation = activation;
-  GC_PROTECT(g_global_activation);
-  LoadBuiltins(activation);
-
-  std::ifstream input(filename);
   while (1) {
     try {
       read = Read(input);
@@ -60,13 +62,51 @@ int ActualMain(char *filename) {
   }
 }
 
+int ActualMain(char *filename) {
+  GC_HELPER_FRAME;
+  GC_PROTECTED_LOCAL(activation);
+
+  activation = GcHeap::AllocateActivation(nullptr);
+  g_global_activation = activation;
+  GC_PROTECT(g_global_activation);
+  LoadBuiltins(activation);
+
+  std::string prelude_file = g_options.stdlib_path + path_sep + "prelude.jet";
+  std::ifstream prelude(prelude_file);
+  std::ifstream input(g_options.input_file);
+
+  if (prelude.fail()) {
+    std::cerr << "failed to open prelude (" << prelude_file << ")" << std::endl;
+    return 1;
+  }
+
+  if (input.fail()) {
+    std::cerr << "failed to open file: " << filename << std::endl;
+    return 1;
+  }
+
+  int exitCode = EvalFile(prelude, activation);
+  if (exitCode != 0) {
+    return exitCode;
+  }
+
+  return EvalFile(input, activation);
+}
+
 void InitializeRuntime() {
   GcHeap::Initialize();
   SymbolInterner::Initialize();
   g_frames = new Frame("<global>", nullptr);
   g_current_frame = g_frames;
 #ifdef DEBUG
-  GcHeap::ToggleStressMode();
+  if (g_options.gc_stress) {
+    GcHeap::ToggleStressMode();
+  }
+
+  if (g_options.heap_verify) {
+    GcHeap::ToggleHeapVerifyMode();
+  }
+
   g_contract_frames = new ContractFrame("<global>", nullptr);
   g_contract_current_frame = g_contract_frames;
 #endif
@@ -74,11 +114,8 @@ void InitializeRuntime() {
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cout << "usage: jet <file.jet>" << std::endl;
-    return 1;
-  }
-
+  ParseOptions(argc, argv);
+  ValidateOptions();
   InitializeRuntime();
   return ActualMain(argv[1]);
 }

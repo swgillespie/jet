@@ -150,6 +150,7 @@ private:
   size_t extent;
   size_t gc_number;
   bool stress;
+  bool heap_verify;
   std::list<Sexp *> finalize_queue;
 
 public:
@@ -181,7 +182,11 @@ public:
 
     uint8_t *result = free;
     uint8_t *bump = result + sizeof(Sexp);
-    if (stress || bump > top) {
+    if (bump > top
+#ifdef DEBUG
+      || stress
+#endif
+      ) {
       DebugLog("bump pointer alloc failed, triggering a GC");
       // we've filled up our fromspace - need to GC.
       Collect();
@@ -215,7 +220,9 @@ public:
   // Performs a garbage collection.
   void Collect() {
 #ifdef DEBUG
-    VerifyHeap();
+    if (heap_verify) {
+      VerifyHeap();
+    }
 #endif
 
     gc_number++;
@@ -287,7 +294,9 @@ public:
     worklist.clear();
 
 #ifdef DEBUG
-    VerifyHeap();
+    if (heap_verify) {
+      VerifyHeap();
+    }
 #endif
   }
 
@@ -354,6 +363,8 @@ public:
   }
 
   void ToggleStress() { stress = !stress; }
+
+  void ToggleHeapVerify() { heap_verify = !heap_verify; }
 
   void VerifyHeap() {
 // The basic idea here is to traverse the entire
@@ -429,4 +440,6 @@ void GcHeap::Collect() {
   return pimpl->Collect();
 }
 
-void GcHeap::ToggleStress() { return pimpl->ToggleStress(); }
+void GcHeap::ToggleStress() { pimpl->ToggleStress(); }
+
+void GcHeap::ToggleHeapVerify() { pimpl->ToggleHeapVerify(); }

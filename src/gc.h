@@ -163,6 +163,7 @@ private:
   Sexp *Allocate(bool should_finalize);
   void Collect();
   void ToggleStress();
+  void ToggleHeapVerify();
 
 public:
   // Initializes the GC.
@@ -300,5 +301,10 @@ public:
   static void ToggleStressMode() {
     assert(g_heap != nullptr);
     g_heap->ToggleStress();
+  }
+
+  static void ToggleHeapVerifyMode() {
+    assert(g_heap != nullptr);
+    g_heap->ToggleHeapVerify();
   }
 };

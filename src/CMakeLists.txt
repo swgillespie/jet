@@ -9,6 +9,7 @@ add_executable(jet
     activation.cpp
     meaning.cpp 
     analysis.cpp 
-    builtins.cpp)
+    builtins.cpp
+    options.cpp)
 
 install (TARGETS jet DESTINATION bin)

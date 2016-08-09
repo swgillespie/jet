@@ -223,6 +223,13 @@ Sexp *Builtin_EofObject_P(Sexp *form) {
   return GcHeap::AllocateBool(form->IsEof());
 }
 
+Sexp *Builtin_EmptyP(Sexp *form) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
+
+  return GcHeap::AllocateBool(form->IsEmpty());
+}
+
 Sexp *Builtin_Not(Sexp *form) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
@@ -249,5 +256,6 @@ void LoadBuiltins(Sexp *activation) {
   LoadSingleBuiltin(activation, "println", Builtin_Println);
   LoadSingleBuiltin(activation, "error", Builtin_Error);
   LoadSingleBuiltin(activation, "eof-object?", Builtin_EofObject_P);
+  LoadSingleBuiltin(activation, "empty?", Builtin_EmptyP);
   LoadSingleBuiltin(activation, "not", Builtin_Not);
 }
