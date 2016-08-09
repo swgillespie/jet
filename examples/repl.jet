@@ -1,3 +1,5 @@
+;; repl.jet - a simple repl for Jet.
+
 (define repl
   (lambda ()
     (print ">> ")
@@ -9,4 +11,6 @@
            (repl))
         (println "bye!")))))
 
+(println "Jet REPL, by Sean Gillespie")
+(println "Control+D to exit")
 (repl)

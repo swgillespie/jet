@@ -184,9 +184,9 @@ public:
     uint8_t *bump = result + sizeof(Sexp);
     if (bump > top
 #ifdef DEBUG
-      || stress
+        || stress
 #endif
-      ) {
+        ) {
       DebugLog("bump pointer alloc failed, triggering a GC");
       // we've filled up our fromspace - need to GC.
       Collect();

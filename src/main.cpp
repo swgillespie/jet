@@ -23,11 +23,11 @@
 #include "contract.h"
 #include "gc.h"
 #include "interner.h"
+#include "options.h"
+#include "options.h"
 #include "reader.h"
 #include "sexp.h"
-#include "options.h"
 #include <fstream>
-#include "options.h"
 
 const char path_sep =
 #ifdef _WIN32
@@ -36,7 +36,7 @@ const char path_sep =
     '/';
 #endif
 
-int EvalFile(std::ifstream& input, Sexp *activation) {
+int EvalFile(std::ifstream &input, Sexp *activation) {
   GC_HELPER_FRAME;
   GC_PROTECTED_LOCAL(read);
   GC_PROTECTED_LOCAL(meaning);
