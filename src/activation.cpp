@@ -37,9 +37,24 @@ Sexp *Activation::Get(size_t up_index, size_t right_index) {
   }
 
   assert(cursor != nullptr);
-  assert(right_index < cursor->slots.size());
+
+  // at this point, if the right_index isn't valid (it's out of bounds
+  // or it refers to a null slot), then it's an uninitialized read.
+  //
+  // unfortunately, at this point we've eliminated variable names,
+  // so we can't give a very good error message. The analysis phase
+  // should have emitted a warning when it saw that this could happen.
+  if (right_index >= cursor->slots.size()) {
+    throw JetRuntimeException("invalid read of uninitialized variable. Run "
+                              "with --warnings for more details.");
+  }
+
   Sexp *result = cursor->slots[right_index];
-  assert(result != nullptr);
+  if (result == nullptr) {
+    throw JetRuntimeException("invalid read of uninitialized variable. Run "
+                              "with --warnings for more details.");
+  }
+
   return result;
 }
 
@@ -63,7 +78,7 @@ void Activation::Set(size_t up_index, size_t right_index, Sexp *value) {
     // expand our slots.
     size_t diff = right_index - cursor->slots.size();
     for (size_t i = 0; i <= diff; i++) {
-      cursor->slots.push_back(GcHeap::AllocateEmpty());
+      cursor->slots.push_back(nullptr);
     }
   }
 
@@ -74,7 +89,9 @@ void Activation::Set(size_t up_index, size_t right_index, Sexp *value) {
 void Activation::TracePointers(std::function<void(Sexp **)> func) {
   Sexp **data = slots.data();
   for (size_t i = 0; i < slots.size(); i++) {
-    func(&data[i]);
+    if (data[i] != nullptr) {
+      func(&data[i]);
+    }
   }
 
   if (parent != nullptr) {

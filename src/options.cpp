@@ -28,10 +28,12 @@ const char *usage =
     "Jet interpreter, by Sean Gillespie\n"
     "\n"
     "usage: jet <file.jet> [-h|--help] [-s|--stdlib-path] [--gc-stress]\n"
+    "                      [-w|--warnings] [--heap-verify]"
     "\n"
     "options:\n"
     "   -h|--help         Displays this message.\n"
     "   -s|--stdlib-path  Sets the path to the Jet standard library.\n"
+    "   -w|--warnings     Emits warnings for possibly unbound variables.\n"
     "   --gc-stress       Enables GC stress. Debug builds only.\n"
     "   --heap-verify     Verify the heap before and after a GC. Debug builds "
     "only.";
@@ -58,6 +60,12 @@ void ParseOptions(int argc, char **argv) {
       }
 
       g_options.stdlib_path = argv[i++];
+      continue;
+    }
+
+    if (strcmp("-w", argv[i]) == 0 || strcmp("--warnings", argv[i]) == 0) {
+      i++;
+      g_options.emit_warnings = true;
       continue;
     }
 

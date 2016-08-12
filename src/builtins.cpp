@@ -243,10 +243,10 @@ void LoadBuiltins(Sexp *activation) {
   GC_HELPER_FRAME;
   GC_PROTECT(activation);
 
-  LoadSingleBuiltin(activation, "+", Builtin_Add);
-  LoadSingleBuiltin(activation, "-", Builtin_Sub);
-  LoadSingleBuiltin(activation, "*", Builtin_Mul);
-  LoadSingleBuiltin(activation, "/", Builtin_Div);
+  LoadSingleBuiltin(activation, "-primitive-add", Builtin_Add);
+  LoadSingleBuiltin(activation, "-primitive-sub", Builtin_Sub);
+  LoadSingleBuiltin(activation, "-primitive-mul", Builtin_Mul);
+  LoadSingleBuiltin(activation, "-primitive-div", Builtin_Div);
   LoadSingleBuiltin(activation, "car", Builtin_Car);
   LoadSingleBuiltin(activation, "cdr", Builtin_Cdr);
   LoadSingleBuiltin(activation, "cons", Builtin_Cons);

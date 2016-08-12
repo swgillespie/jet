@@ -24,6 +24,7 @@
 #include <list>
 #include <stack>
 #include <unordered_map>
+#include <unordered_set>
 
 #ifdef _WIN32
 #include "windows.h"
@@ -38,8 +39,6 @@
 char *g_gc_log[GC_DEBUG_LOG_SIZE];
 size_t g_gc_log_index = 0;
 #endif
-
-#include <unordered_set>
 
 Frame *g_frames;
 Frame *g_current_frame;

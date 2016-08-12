@@ -146,6 +146,11 @@ public:
   std::vector<Sexp *> value;                                                   \
   __frame_prot.ProtectVector(&value, #value)
 
+// The GC does not currently require the use of a write barrier,
+// but the VM has support for it anyway. When (if) we switch to
+// a generationala collector, we'll need it.
+#define GC_WRITE_BARRIER(ref, value)
+
 class GcHeap;
 extern GcHeap *g_heap;
 extern Sexp g_the_empty_sexp;

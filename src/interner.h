@@ -85,6 +85,8 @@ public:
     g_the_interner->Intern("append");
     g_the_interner->Intern("defmacro");
     g_the_interner->Intern("let");
+    g_the_interner->Intern("and");
+    g_the_interner->Intern("or");
   }
 
   static size_t InternSymbol(std::string str) {
@@ -111,4 +113,6 @@ public:
   static const size_t Append = 9;
   static const size_t DefMacro = 10;
   static const size_t Let = 11;
+  static const size_t And = 12;
+  static const size_t Or = 13;
 };

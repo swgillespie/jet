@@ -6,22 +6,66 @@
   (lambda l l))
 
 ;; Append - Concatenates two lists.
-(define append
-  (lambda (l m)
-    (if (empty? l) m
-      (cons (car l) (append (cdr l) m)))))
+(define (append l m)
+  (if (empty? l) m
+    (cons (car l) (append (cdr l) m))))
 
-(define reverse-aux
-  (lambda (l a)
-    (if (empty? l) a
-      (reverse-aux (cdr l) (cons (car l) a)))))
+(define (reverse-aux l a)
+  (if (empty? l) a
+      (reverse-aux (cdr l) (cons (car l) a))))
 
 ;; Reverse - reverses a list.
-(define reverse
-  (lambda (l) (reverse-aux l '())))
+(define (reverse l)
+  (reverse-aux l '()))
 
-(define map
-  (lambda (f l)
-    (if (empty? l)
+;; Map - applies a function to a list, yielding
+;; a new list.
+(define (map f l)
+  (if (empty? l)
       '()
-      (cons (f (car l)) (map f (cdr l))))))
+      (cons (f (car l)) (map f (cdr l)))))
+
+(define (filter f l)
+  (if (empty? l)
+      '()
+      (if (f (car l))
+          (cons (car l) (filter f (cdr l)))
+          (filter f (cdr l)))))
+
+;; Foldr - Fold a list from the right.
+(define (foldr f z l)
+  (if (empty? l)
+      z
+      (f (car l) (foldr f z (cdr l)))))
+
+;; Foldl - Fold a list from the left.
+(define (foldl f z l)
+  (if (empty? l)
+      z
+      (foldl f (f z (car l)) (cdr l))))
+
+(define reduce foldl)
+
+;; Copy - makes a shallow copy of a list.
+(define (copy l)
+  (foldr cons '() l))
+
+;; ======================
+;; Basic operators
+;;
+;; Every "primitive" arithmetic operator is defined
+;; as a arity 2 function by the runtime. Jet's operators
+;; are defined here in terms of those primitive functions.
+;; ======================
+(define +
+  (lambda l (foldl -primitive-add 0 l)))
+
+(define (- a b)
+  (-primitive-sub a b))
+
+(define *
+  (lambda l (foldl -primitive-mul 1 l)))
+
+(define (/ a b)
+  (-primitive-div a b))
+

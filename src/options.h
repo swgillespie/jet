@@ -27,6 +27,7 @@ struct Options {
   std::string input_file;
   bool gc_stress;
   bool heap_verify;
+  bool emit_warnings;
 };
 
 extern Options g_options;

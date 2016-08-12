@@ -48,6 +48,8 @@ Trampoline DefinitionMeaning::Eval(Sexp *act) {
   GC_PROTECT(act);
   GC_PROTECTED_LOCAL(value);
   value = Evaluate(binding_value, act);
+
+  GC_WRITE_BARRIER(act, value);
   act->activation->Set(up_index, right_index, value);
   return Trampoline(GcHeap::AllocateEmpty());
 }
@@ -60,6 +62,8 @@ Trampoline SetMeaning::Eval(Sexp *act) {
   GC_PROTECTED_LOCAL(value);
 
   value = Evaluate(binding_value, act);
+
+  GC_WRITE_BARRIER(act, value);
   act->activation->Set(up_index, right_index, value);
   return Trampoline(GcHeap::AllocateEmpty());
 }
@@ -160,6 +164,7 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
     for (size_t i = 0; i < called_expr->function.func_meaning->Arity();
          it++, i++) {
       eval_arg = Evaluate(*it, act);
+      GC_WRITE_BARRIER(child_act, eval_arg);
       child_act->activation->Set(0, right_index++, eval_arg);
     }
 
@@ -182,6 +187,7 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
       // this is the first time I've ever had to do this algorithm
       // outside of a job interview. nice!
       ReverseSexp(&args_list);
+      GC_WRITE_BARRIER(child_act, args_list);
       child_act->activation->Set(0, right_index, args_list);
     }
 
@@ -189,6 +195,9 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
         called_expr->function.func_meaning->IsVariadic()) {
       // we have to give the called function an empty list if it's not called
       // with any arguments.
+      //
+      // no need to to call the write barrier here, empty lists
+      // arenpt tracked by the GC.
       child_act->activation->Set(0, 0, GcHeap::AllocateEmpty());
     }
 
@@ -219,6 +228,36 @@ Trampoline InvocationMeaning::Eval(Sexp *act) {
 
   // we can't tail call native functions.
   return Trampoline(ret);
+}
+
+Trampoline AndMeaning::Eval(Sexp *act) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(act);
+  GC_PROTECTED_LOCAL(eval);
+
+  for (auto &arg : arguments) {
+    eval = Evaluate(arg, act);
+    if (!eval->IsTruthy()) {
+      return GcHeap::AllocateBool(false);
+    }
+  }
+
+  return GcHeap::AllocateBool(true);
+}
+
+Trampoline OrMeaning::Eval(Sexp *act) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(act);
+  GC_PROTECTED_LOCAL(eval);
+
+  for (auto &arg : arguments) {
+    eval = Evaluate(arg, act);
+    if (eval->IsTruthy()) {
+      return GcHeap::AllocateBool(true);
+    }
+  }
+
+  return GcHeap::AllocateBool(false);
 }
 
 Sexp *Evaluate(Sexp *meaning, Sexp *act) {

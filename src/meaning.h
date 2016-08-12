@@ -320,6 +320,68 @@ public:
   std::vector<Sexp *> &Arguments() { return arguments; }
 };
 
+// An AndMeaning is a meaning for the special "and" function
+// call, which will short-circuit on a false argument.
+class AndMeaning : public Meaning {
+private:
+  std::vector<Sexp *> arguments;
+
+public:
+  AndMeaning(std::vector<Sexp *> args) : arguments(std::move(args)) {}
+
+  Trampoline Eval(Sexp *act) override;
+
+  void TracePointers(std::function<void(Sexp **)> func) override {
+    for (auto &arg : arguments) {
+      func(&arg);
+    }
+  }
+
+  void Dump(std::ostream &out) override {
+    out << "(meaning-and ";
+    for (Sexp *b : arguments) {
+      assert(b->IsMeaning());
+      b->meaning->Dump(out);
+      out << " ";
+    }
+
+    out << ")";
+  }
+
+  std::vector<Sexp *> &Arguments() { return arguments; }
+};
+
+// An OrMeaning is a meaning for the special "and" function
+// call, which will short-circuit on a true argument.
+class OrMeaning : public Meaning {
+private:
+  std::vector<Sexp *> arguments;
+
+public:
+  OrMeaning(std::vector<Sexp *> args) : arguments(std::move(args)) {}
+
+  Trampoline Eval(Sexp *act) override;
+
+  void TracePointers(std::function<void(Sexp **)> func) override {
+    for (auto &arg : arguments) {
+      func(&arg);
+    }
+  }
+
+  void Dump(std::ostream &out) override {
+    out << "(meaning-or ";
+    for (Sexp *b : arguments) {
+      assert(b->IsMeaning());
+      b->meaning->Dump(out);
+      out << " ";
+    }
+
+    out << ")";
+  }
+
+  std::vector<Sexp *> &Arguments() { return arguments; }
+};
+
 // Completely evaluate a meaning, calling thunks repeatedly
 // until a value is returned.
 Sexp *Evaluate(Sexp *meaning, Sexp *act);

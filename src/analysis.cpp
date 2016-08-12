@@ -22,6 +22,7 @@
 #include "contract.h"
 #include "gc.h"
 #include "interner.h"
+#include "options.h"
 
 #include <iostream>
 
@@ -43,8 +44,12 @@ std::tuple<size_t, size_t> Environment::Get(size_t symbol) {
     up_index++;
   }
 
-  throw JetRuntimeException("possibly unbound symbol: "s +
-                            SymbolInterner::GetSymbol(symbol));
+  if (g_options.emit_warnings) {
+    std::cerr << "warning: possibly unbound symbol: "
+              << SymbolInterner::GetSymbol(symbol) << std::endl;
+  }
+
+  return DefineGlobal(symbol);
 }
 
 void Environment::Define(size_t symbol) {
@@ -55,6 +60,14 @@ void Environment::Define(size_t symbol) {
 
 std::tuple<size_t, size_t> Environment::DefineGlobal(size_t symbol) {
   std::unordered_map<size_t, std::tuple<bool, size_t>> &env = slot_map.front();
+  // if this symbol has already been defined (by either a duplicate define
+  // or by a bind-after-reference), return the definition that already exists.
+  if (env.find(symbol) != env.end()) {
+    auto tup = env[symbol];
+    return std::make_tuple(slot_map.size() - 1, std::get<1>(tup));
+  }
+
+  // otherwise, we'll define it here.
   size_t idx = env.size();
   env[symbol] = std::make_tuple(false, idx);
   return std::make_tuple(slot_map.size() - 1, idx);
@@ -186,6 +199,46 @@ static Sexp *AnalyzeBegin(Sexp *form) {
   return GcHeap::AllocateMeaning(meaning);
 }
 
+static Sexp *AnalyzeDefineFunction(Sexp *form) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
+  GC_PROTECTED_LOCAL(args);
+  GC_PROTECTED_LOCAL(name);
+  // this is the special define form,
+  // (define (fun arg1 arg2 arg3) ...)
+  //         ^----- form is pointing to this.
+  //
+  // we're going to do a quick and dirty transform into
+  // (define fun (lambda arg1 arg2 arg3) ...)
+  if (!form->Car()->IsCons()) {
+    throw JetRuntimeException("invalid define-function form");
+  }
+
+  args = form->Car();
+  if (!args->Car()->IsSymbol()) {
+    throw JetRuntimeException("invalid define-function form");
+  }
+
+  name = args->Car();
+
+  GC_PROTECTED_LOCAL(define_sym);
+  GC_PROTECTED_LOCAL(define_form);
+  GC_PROTECTED_LOCAL(define_args);
+  GC_PROTECTED_LOCAL(lambda);
+  GC_PROTECTED_LOCAL(lambda_sym);
+  GC_PROTECTED_LOCAL(lambda_args);
+  lambda_sym = GcHeap::AllocateSymbol(SymbolInterner::Lambda);
+  lambda_args = GcHeap::AllocateCons(form->Cadr(), GcHeap::AllocateEmpty());
+  lambda_args = GcHeap::AllocateCons(args->Cdr(), lambda_args);
+  lambda = GcHeap::AllocateCons(lambda_sym, lambda_args);
+  define_sym = GcHeap::AllocateSymbol(SymbolInterner::Define);
+  define_args = GcHeap::AllocateCons(lambda, GcHeap::AllocateEmpty());
+  define_args = GcHeap::AllocateCons(name, define_args);
+  define_form = GcHeap::AllocateCons(define_sym, define_args);
+
+  return Analyze(define_form);
+}
+
 static Sexp *AnalyzeDefine(Sexp *form, bool is_macro) {
   GC_HELPER_FRAME;
   GC_PROTECT(form);
@@ -194,11 +247,18 @@ static Sexp *AnalyzeDefine(Sexp *form, bool is_macro) {
   bool is_proper;
   size_t len;
   std::tie(is_proper, len) = form->Length();
-  if (!is_proper || len != 2) {
+  if (!is_proper) {
     throw JetRuntimeException("invalid define form");
   }
 
   if (!form->Car()->IsSymbol()) {
+    // if the car isn't a symbol, it's either a list or
+    // something invalid.
+    return AnalyzeDefineFunction(form);
+  }
+
+  // if we're here, the length of the form must be two.
+  if (len != 2) {
     throw JetRuntimeException("invalid define form");
   }
 
@@ -540,6 +600,40 @@ static Sexp *AnalyzeLet(Sexp *form) {
   return GcHeap::AllocateMeaning(call_meaning);
 }
 
+Sexp *AnalyzeShortCircuit(Sexp *form) {
+  CONTRACT {
+    PRECONDITION(form->IsCons());
+    PRECONDITION(form->Car()->IsSymbol());
+    PRECONDITION(form->Car()->symbol_value == SymbolInterner::And ||
+                 form->Car()->symbol_value == SymbolInterner::Or);
+  }
+
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
+  GC_PROTECTED_LOCAL_VECTOR(args);
+
+  bool is_proper;
+  std::tie(is_proper, std::ignore) = form->Length();
+
+  if (!is_proper) {
+    throw JetRuntimeException("invalid short-circuiting form");
+  }
+
+  form->Cdr()->ForEach(
+      [&](Sexp *argument) { args.push_back(Analyze(argument)); });
+
+  if (form->Car()->symbol_value == SymbolInterner::And) {
+    AndMeaning *meaning = new AndMeaning(args);
+    GC_PROTECT_VECTOR(meaning->Arguments());
+    return GcHeap::AllocateMeaning(meaning);
+  } else {
+    assert(form->Car()->symbol_value == SymbolInterner::Or);
+    OrMeaning *meaning = new OrMeaning(args);
+    GC_PROTECT_VECTOR(meaning->Arguments());
+    return GcHeap::AllocateMeaning(meaning);
+  }
+}
+
 Sexp *Analyze(Sexp *form) {
   CONTRACT {
     PRECONDITION(form != nullptr);
@@ -573,6 +667,9 @@ Sexp *Analyze(Sexp *form) {
       return AnalyzeQuasiquote(form->Cdr());
     case SymbolInterner::Let:
       return AnalyzeLet(form->Cdr());
+    case SymbolInterner::And:
+    case SymbolInterner::Or:
+      return AnalyzeShortCircuit(form);
     default:
       return AnalyzeInvocation(form);
     }
