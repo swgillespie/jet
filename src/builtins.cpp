@@ -170,8 +170,6 @@ Sexp *Builtin_Eval(Sexp *form) {
   analyzed = Analyze(form);
   g_the_environment->ExitScope();
 
-  // std::cout << "analyzed: " << analyzed->DumpString() << std::endl;
-
   // this creates a new child activation. Not sure if that's
   // right, but it works.
   act = GcHeap::AllocateActivation(g_global_activation);
@@ -237,6 +235,89 @@ Sexp *Builtin_Not(Sexp *form) {
   return GcHeap::AllocateBool(!form->IsTruthy());
 }
 
+Sexp *Builtin_PairP(Sexp *form) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(form);
+
+  return GcHeap::AllocateBool(form->IsCons());
+}
+
+Sexp *Builtin_EqP(Sexp *first, Sexp *second) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(first);
+  GC_PROTECT(second);
+
+  return GcHeap::AllocateBool(first == second);
+}
+
+bool EqualityHelper(Sexp *first, Sexp *second) {
+  CONTRACT { FORBID_GC; }
+
+  if (first->IsCons() && second->IsCons()) {
+    return EqualityHelper(first->Car(), second->Car())
+        && EqualityHelper(first->Cdr(), second->Cdr());
+  }
+
+  if (!first->IsCons() && !second->IsCons()) {
+    if (first->IsFixnum() && second->IsFixnum()) {
+      return first->fixnum_value == second->fixnum_value;
+    }
+
+    if (first->IsSymbol() && second->IsSymbol()) {
+      return first->symbol_value == second->symbol_value;
+    }
+
+    if (first->IsString() && second->IsString()) {
+      return strcmp(first->string_value, second->string_value) == 0;
+    }
+
+    if (first->IsBool() && second->IsBool()) {
+      return first->bool_value == second->bool_value;
+    }
+
+    // (eq? first second) implies (equal? first second)
+    if (first == second) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+Sexp *Builtin_EqualP(Sexp *first, Sexp *second) {
+  GC_HELPER_FRAME;
+  GC_PROTECT(first);
+  GC_PROTECT(second);
+
+  return GcHeap::AllocateBool(EqualityHelper(first, second));
+}
+
+Sexp *Builtin_SetCar(Sexp *cons, Sexp *car) {
+  CONTRACT { FORBID_GC; }
+
+  if (!cons->IsCons()) {
+    throw JetRuntimeException("type error: not a cons");
+  }
+
+  GC_WRITE_BARRIER(cons, car);
+  cons->cons.car = car;
+
+  return GcHeap::AllocateEmpty();
+}
+
+Sexp *Builtin_SetCdr(Sexp *cons, Sexp *cdr) {
+  CONTRACT { FORBID_GC; }
+
+  if (!cons->IsCons()) {
+    throw JetRuntimeException("type error: not a cons");
+  }
+
+  GC_WRITE_BARRIER(cons, cdr);
+  cons->cons.cdr = cdr;
+
+  return GcHeap::AllocateEmpty();
+}
+
 void LoadBuiltins(Sexp *activation) {
   CONTRACT { PRECONDITION(activation->IsActivation()); }
 
@@ -258,4 +339,9 @@ void LoadBuiltins(Sexp *activation) {
   LoadSingleBuiltin(activation, "eof-object?", Builtin_EofObject_P);
   LoadSingleBuiltin(activation, "empty?", Builtin_EmptyP);
   LoadSingleBuiltin(activation, "not", Builtin_Not);
+  LoadSingleBuiltin(activation, "pair?", Builtin_PairP);
+  LoadSingleBuiltin(activation, "eq?", Builtin_EqP);
+  LoadSingleBuiltin(activation, "equal?", Builtin_EqualP);
+  LoadSingleBuiltin(activation, "set-car!", Builtin_SetCar);
+  LoadSingleBuiltin(activation, "set-cdr!", Builtin_SetCdr);
 }

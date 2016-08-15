@@ -24,12 +24,17 @@
 #include "interner.h"
 #include <sstream>
 
+#define PAREN_NESTING_DEPTH_MAX 1024
+
 using namespace std::literals;
 
 // Prototypes for our mutually-recursive read functions
 static Sexp *ReadSublist(std::istream &);
 static Sexp *ReadAtom(std::istream &);
 static Sexp *ReadToplevel(std::istream &);
+
+static char list_delimiter_stack[PAREN_NESTING_DEPTH_MAX];
+static size_t list_delimiter_stack_index;
 
 static char Peek(std::istream &input) { return (char)input.peek(); }
 
@@ -38,6 +43,35 @@ static void Expect(std::istream &input, char c) {
   if (read != c) {
     throw ReadException("unexpected char: expected "s + c + ", got "s + read);
   }
+}
+
+static void ReadListStart(std::istream &input) {
+  if (Peek(input) == '(' || Peek(input) == '[') {
+    char read = (char)input.get();
+    if (list_delimiter_stack_index >= PAREN_NESTING_DEPTH_MAX) {
+      throw ReadException("list nesting level exceeded maximum depth");
+    }
+
+    char terminator = read == '(' ? ')' : ']';
+    list_delimiter_stack[list_delimiter_stack_index++] = terminator;
+    return;
+  }
+
+  throw ReadException("unexpected char: expected ( or [, got "s + Peek(input));
+}
+
+static void ReadListEnd(std::istream &input) {
+  assert(list_delimiter_stack_index != 0);
+  Expect(input, list_delimiter_stack[--list_delimiter_stack_index]);
+}
+
+static bool IsAtListEnd(std::istream &input) {
+  return Peek(input) == list_delimiter_stack[list_delimiter_stack_index - 1];
+}
+
+static bool IsAtListStart(std::istream &input) {
+  char read = Peek(input);
+  return read == '(' || read == '[';
 }
 
 static void SkipWhitespace(std::istream &input) {
@@ -94,14 +128,14 @@ static Sexp *ReadSublist(std::istream &input) {
   GC_PROTECTED_LOCAL(car);
   GC_PROTECTED_LOCAL(cdr);
 
-  if (Peek(input) == ')') {
+  if (IsAtListEnd(input)) {
     return GcHeap::AllocateEmpty();
   }
 
   SkipWhitespace(input);
   car = ReadAtom(input);
   SkipWhitespace(input);
-  if (Peek(input) != ')') {
+  if (!IsAtListEnd(input)) {
     if (Peek(input) == '.') {
       // this is an improper list.
       Expect(input, '.');
@@ -144,14 +178,12 @@ static Sexp *ReadFixnum(std::istream &input) {
       buf << peeked;
       input.get();
       continue;
-    } else if (!isspace(peeked) && peeked != ')' && peeked != '(') {
+    } else if (!isspace(peeked) && peeked != ')' && peeked != '(' && peeked != '[' && peeked != ']') {
       throw ReadException("unexpected char in numeric literal: "s + peeked);
     }
 
     break;
   }
-
-  // GcHeap::ForceCollect();
 
   jet_fixnum num = atoi(buf.str().c_str());
   return GcHeap::AllocateFixnum(num);
@@ -255,11 +287,11 @@ static Sexp *ReadAtom(std::istream &input) {
     return ReadFixnum(input);
   }
 
-  if (peeked == '(') {
-    Expect(input, '(');
+  if (IsAtListStart(input)) {
+    ReadListStart(input);
     result = ReadSublist(input);
     SkipWhitespace(input);
-    Expect(input, ')');
+    ReadListEnd(input);
     return result;
   }
 
@@ -288,20 +320,20 @@ static Sexp *ReadAtom(std::istream &input) {
 
 static Sexp *ReadToplevel(std::istream &input) {
   SkipWhitespace(input);
-  if (Peek(input) != '(') {
+  if (!IsAtListStart(input)) {
     return ReadAtom(input);
   }
 
-  Expect(input, '(');
+  ReadListStart(input);
   SkipWhitespace(input);
-  if (Peek(input) == ')') {
-    Expect(input, ')');
+  if (IsAtListEnd(input)) {
+    ReadListEnd(input);
     return GcHeap::AllocateEmpty();
   }
 
   Sexp *sublist = ReadSublist(input);
   SkipWhitespace(input);
-  Expect(input, ')');
+  ReadListEnd(input);
   return sublist;
 }
 

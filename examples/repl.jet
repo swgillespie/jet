@@ -3,9 +3,9 @@
 (define repl
   (lambda ()
     (print ">> ")
-    (let ((read-form (read)))
+    (let [(read-form (read))]
       (if (not (eof-object? read-form))
-          (let ((result (eval read-form)))
+          (let [(result (eval read-form))]
             (print "==> ")
             (println result)
             (repl))
