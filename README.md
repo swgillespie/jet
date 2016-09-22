@@ -1,7 +1,5 @@
 # Jet - a small Lisp written in C++.
 
-[![Build Status](https://travis-ci.org/swgillespie/jet.svg?branch=master)](https://travis-ci.org/swgillespie/jet)
-
 Jet is a tiny lisp that doesn't offer a whole lot yet. It's quite speedy
 at doing the small amount of things that it can do, though.
 
