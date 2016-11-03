@@ -140,6 +140,12 @@ struct Sexp {
   uint64_t padding_2;
 #endif
 
+#ifdef __arm__
+  // same with 32-bit arm, but only because of the decrease in pointer
+  // size.
+  uint64_t padding_2;
+#endif
+
   // Returns true if this sexp is the empty sexp.
   inline bool IsEmpty() const { return kind == Sexp::Kind::EMPTY; }
 

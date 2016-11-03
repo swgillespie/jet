@@ -21,6 +21,7 @@
 #include "options.h"
 #include "util.h"
 #include <iostream>
+#include <cstring>
 
 Options g_options;
 

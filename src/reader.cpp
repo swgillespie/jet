@@ -36,7 +36,7 @@ static Sexp *ReadToplevel(std::istream &);
 static char list_delimiter_stack[PAREN_NESTING_DEPTH_MAX];
 static size_t list_delimiter_stack_index;
 
-static char Peek(std::istream &input) { return (char)input.peek(); }
+static int Peek(std::istream &input) { return input.peek(); }
 
 static void Expect(std::istream &input, char c) {
   char read = (char)input.get();
@@ -57,7 +57,7 @@ static void ReadListStart(std::istream &input) {
     return;
   }
 
-  throw ReadException("unexpected char: expected ( or [, got "s + Peek(input));
+  throw ReadException("unexpected char: expected ( or [, got "s + (char)Peek(input));
 }
 
 static void ReadListEnd(std::istream &input) {
@@ -216,12 +216,12 @@ static Sexp *ReadString(std::istream &input) {
   Expect(input, '"');
   std::ostringstream buf;
   while (Peek(input) != '"') {
-    char peeked = Peek(input);
+    int peeked = Peek(input);
     if (peeked == EOF) {
       throw ReadException("unexpected EOF while scanning string literal");
     }
 
-    buf << peeked;
+    buf << (char)peeked;
     input.get();
   }
 
